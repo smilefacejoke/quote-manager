@@ -11,7 +11,6 @@
       --line: #e5e5e5;
       --bg: #fafaf8;
       --card: #fff;
-      --accent: #1a1a1a;
       --danger: #c0392b;
     }
     * { box-sizing: border-box; }
@@ -26,22 +25,9 @@
       padding: 20px 28px;
       border-bottom: 1px solid var(--line);
       background: var(--card);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
     header h1 { margin: 0; font-size: 18px; font-weight: 600; }
-    .tabs { display: flex; gap: 8px; }
-    .tabs button {
-      border: 1px solid var(--line);
-      background: transparent;
-      padding: 8px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--ink);
-    }
-    .tabs button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+    header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
     main { padding: 24px 28px; max-width: 1100px; margin: 0 auto; }
     .toolbar {
       display: flex;
@@ -90,10 +76,30 @@
       font-size: 13px;
       text-align: left;
     }
-    th { background: #f3f3f0; font-weight: 500; color: var(--muted); }
+    th { background: #f3f3f0; font-weight: 500; color: var(--muted); white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover td { background: #f7f7f4; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.actions {
+      white-space: nowrap;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 6px;
+      align-items: center;
+    }
+    td.actions button { flex-shrink: 0; }
     .muted { color: var(--muted); font-size: 12px; }
+    .no-quote { color: #bbb; }
+    .model-link {
+      color: var(--ink);
+      font-weight: 500;
+      text-decoration: underline;
+      text-decoration-color: #ccc;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .model-link:hover { text-decoration-color: var(--ink); }
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -108,14 +114,42 @@
       background: var(--card);
       border-radius: 12px;
       padding: 20px;
-      width: min(420px, 92vw);
+      width: min(560px, 92vw);
+      max-height: 86vh;
+      overflow: auto;
       border: 1px solid var(--line);
     }
-    .modal h3 { margin: 0 0 14px; font-size: 16px; }
+    .modal h3 { margin: 0 0 4px; font-size: 16px; }
+    .modal .sub { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
     .field { margin-bottom: 12px; }
     .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
     .field input, .field select, .field textarea { width: 100%; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 8px 0 4px;
+    }
+    .history-table th, .history-table td {
+      padding: 8px 10px;
+      font-size: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .history-table th { background: #f3f3f0; color: var(--muted); font-weight: 500; }
+    .history-table tr:last-child td { border-bottom: none; }
+    .latest-tag {
+      display: inline-block;
+      background: var(--ink);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
     .toast {
       position: fixed;
       bottom: 24px;
@@ -136,63 +170,42 @@
 <body>
 <header>
   <h1>型号报价管理系统</h1>
-  <div class="tabs">
-    <button id="tab-products" class="active" onclick="switchTab('products')">产品</button>
-    <button id="tab-quotes" onclick="switchTab('quotes')">报价</button>
-  </div>
+  <p>列表显示最新报价 · 点击型号查看历史报价</p>
 </header>
 
 <main>
-  <!-- 产品面板 -->
-  <section id="panel-products">
-    <div class="toolbar">
-      <input id="q-brand" placeholder="品牌筛选" style="width:140px" />
-      <input id="q-model" placeholder="型号筛选" style="width:160px" />
-      <button class="ghost" onclick="loadProducts()">查询</button>
-      <button class="primary" onclick="openProductModal()">+ 新增产品</button>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th><th>品牌</th><th>型号</th><th>规格</th><th>创建时间</th><th style="width:140px">操作</th>
-        </tr>
-      </thead>
-      <tbody id="product-body"></tbody>
-    </table>
-    <div class="toolbar" style="margin-top:12px">
-      <button class="ghost" onclick="pageProducts(-1)">上一页</button>
-      <span class="muted" id="product-page-info">第 1 页</span>
-      <button class="ghost" onclick="pageProducts(1)">下一页</button>
-    </div>
-  </section>
-
-  <!-- 报价面板 -->
-  <section id="panel-quotes" style="display:none">
-    <div class="toolbar">
-      <input id="q-product-id" type="number" placeholder="产品ID" style="width:110px" />
-      <button class="ghost" onclick="loadQuotes()">查询</button>
-      <button class="primary" onclick="openQuoteModal()">+ 新增报价</button>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th><th>产品ID</th><th class="num">采购价</th><th class="num">报价</th><th>报价时间</th><th>备注</th><th style="width:140px">操作</th>
-        </tr>
-      </thead>
-      <tbody id="quote-body"></tbody>
-    </table>
-    <div class="toolbar" style="margin-top:12px">
-      <button class="ghost" onclick="pageQuotes(-1)">上一页</button>
-      <span class="muted" id="quote-page-info">第 1 页</span>
-      <button class="ghost" onclick="pageQuotes(1)">下一页</button>
-    </div>
-  </section>
+  <div class="toolbar">
+    <input id="q-brand" placeholder="品牌筛选" style="width:140px" />
+    <input id="q-model" placeholder="型号筛选" style="width:160px" />
+    <button class="ghost" onclick="loadProducts()">查询</button>
+    <button class="primary" onclick="openProductModal()">+ 新增产品</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>品牌</th>
+        <th>型号</th>
+        <th>规格</th>
+        <th class="num">采购价</th>
+        <th class="num">报价</th>
+        <th>报价时间</th>
+        <th style="width:190px">操作</th>
+      </tr>
+    </thead>
+    <tbody id="product-body"></tbody>
+  </table>
+  <div class="toolbar" style="margin-top:12px">
+    <button class="ghost" onclick="pageProducts(-1)">上一页</button>
+    <span class="muted" id="product-page-info">第 1 页</span>
+    <button class="ghost" onclick="pageProducts(1)">下一页</button>
+  </div>
 </main>
 
-<!-- 产品弹窗 -->
+<!-- 产品编辑弹窗 -->
 <div class="modal-backdrop" id="product-modal">
   <div class="modal">
     <h3 id="product-modal-title">新增产品</h3>
+    <p class="sub">报价在保存产品后，通过「报价」按钮录入</p>
     <div class="field"><label>品牌 *</label><input id="p-brand" /></div>
     <div class="field"><label>型号 *</label><input id="p-model" /></div>
     <div class="field"><label>规格</label><input id="p-spec" /></div>
@@ -203,11 +216,35 @@
   </div>
 </div>
 
-<!-- 报价弹窗 -->
+<!-- 历史报价弹窗 -->
+<div class="modal-backdrop" id="history-modal">
+  <div class="modal">
+    <h3 id="history-title">历史报价</h3>
+    <p class="sub" id="history-sub"></p>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>采购价</th>
+          <th>报价</th>
+          <th>报价时间</th>
+          <th>备注</th>
+          <th style="width:70px"></th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('history-modal')">关闭</button>
+      <button class="primary" onclick="openQuoteForm()">+ 录入新报价</button>
+    </div>
+  </div>
+</div>
+
+<!-- 录入报价弹窗 -->
 <div class="modal-backdrop" id="quote-modal">
   <div class="modal">
-    <h3 id="quote-modal-title">新增报价</h3>
-    <div class="field"><label>产品ID *</label><input id="f-product-id" type="number" /></div>
+    <h3 id="quote-modal-title">录入报价</h3>
+    <p class="sub" id="quote-sub"></p>
     <div class="field"><label>采购价 *</label><input id="f-purchase-price" type="number" step="0.01" /></div>
     <div class="field"><label>报价 *</label><input id="f-quote-price" type="number" step="0.01" /></div>
     <div class="field"><label>报价时间</label><input id="f-quote-time" type="datetime-local" /></div>
@@ -224,21 +261,23 @@
 <script>
   const api = {
     async get(url) {
-      const res = await fetch(url);
-      return res.json();
+      return (await fetch(url)).json();
     },
     async send(url, method, body) {
-      const res = await fetch(url, {
+      return (await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
-      });
-      return res.json();
+      })).json();
     }
   };
 
-  let productPage = 1, quotePage = 1;
-  let editingProductId = null, editingQuoteId = null;
+  let productPage = 1;
+  let editingProductId = null;
+  let currentProductId = null;
+  let currentProductLabel = '';
+  let editingQuoteId = null;
+  const productCache = {};
 
   function toast(msg) {
     const el = document.getElementById('toast');
@@ -247,26 +286,11 @@
     setTimeout(() => el.classList.remove('show'), 2200);
   }
 
-  function switchTab(tab) {
-    document.getElementById('panel-products').style.display = tab === 'products' ? '' : 'none';
-    document.getElementById('panel-quotes').style.display = tab === 'quotes' ? '' : 'none';
-    document.getElementById('tab-products').classList.toggle('active', tab === 'products');
-    document.getElementById('tab-quotes').classList.toggle('active', tab === 'quotes');
-    if (tab === 'products') loadProducts(); else loadQuotes();
-  }
-
   function pageProducts(delta) {
     const next = productPage + delta;
     if (next < 1) return;
     productPage = next;
     loadProducts();
-  }
-
-  function pageQuotes(delta) {
-    const next = quotePage + delta;
-    if (next < 1) return;
-    quotePage = next;
-    loadQuotes();
   }
 
   async function loadProducts() {
@@ -282,50 +306,27 @@
     document.getElementById('product-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
     const body = document.getElementById('product-body');
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
-      return;
-    }
-    body.innerHTML = rows.map(p => `
-      <tr>
-        <td>${p.id}</td>
-        <td>${esc(p.brand)}</td>
-        <td>${esc(p.model)}</td>
-        <td>${esc(p.spec || '')}</td>
-        <td class="muted">${fmtTime(p.createdAt)}</td>
-        <td>
-          <button class="ghost" onclick='editProduct(${JSON.stringify(p)})'>编辑</button>
-          <button class="ghost danger" onclick="deleteProduct(${p.id})">删除</button>
-        </td>
-      </tr>`).join('');
-  }
-
-  async function loadQuotes() {
-    const pid = document.getElementById('q-product-id').value.trim();
-    let url = `/api/quotes?pageNo=${quotePage}&pageSize=10`;
-    if (pid) url += `&productId=${pid}`;
-    const r = await api.get(url);
-    if (r.code !== 0) { toast(r.message); return; }
-    const page = r.data;
-    const rows = page.records || [];
-    document.getElementById('quote-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
-    const body = document.getElementById('quote-body');
-    if (!rows.length) {
       body.innerHTML = '<tr><td colspan="7" class="empty">暂无数据</td></tr>';
       return;
     }
-    body.innerHTML = rows.map(q => `
-      <tr>
-        <td>${q.id}</td>
-        <td>${q.productId}</td>
-        <td class="num">${Number(q.purchasePrice).toFixed(2)}</td>
-        <td class="num">${Number(q.quotePrice).toFixed(2)}</td>
-        <td class="muted">${fmtTime(q.quoteTime)}</td>
-        <td>${esc(q.remark || '')}</td>
-        <td>
-          <button class="ghost" onclick='editQuote(${JSON.stringify(q)})'>编辑</button>
-          <button class="ghost danger" onclick="deleteQuote(${q.id})">删除</button>
+    rows.forEach(p => { productCache[p.id] = p; });
+    body.innerHTML = rows.map(p => {
+      const hasQuote = p.purchasePrice != null;
+      return `
+      <tr class="clickable" onclick="openHistory(${p.id})">
+        <td>${esc(p.brand)}</td>
+        <td><span class="model-link">${esc(p.model)}</span></td>
+        <td class="muted">${esc(p.spec || '')}</td>
+        <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.purchasePrice).toFixed(2) : '—'}</td>
+        <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
+        <td class="muted">${hasQuote ? fmtTime(p.quoteTime) : '暂无报价'}</td>
+        <td class="actions">
+          <button class="ghost" onclick="event.stopPropagation(); openHistory(${p.id})">报价</button>
+          <button class="ghost" onclick="event.stopPropagation(); editProduct(${p.id})">编辑</button>
+          <button class="ghost danger" onclick="event.stopPropagation(); deleteProduct(${p.id})">删除</button>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   }
 
   function openProductModal() {
@@ -337,9 +338,11 @@
     document.getElementById('product-modal').classList.add('open');
   }
 
-  function editProduct(p) {
-    editingProductId = p.id;
-    document.getElementById('product-modal-title').textContent = `编辑产品 #${p.id}`;
+  function editProduct(id) {
+    const p = productCache[id];
+    if (!p) { toast('数据未加载'); return; }
+    editingProductId = id;
+    document.getElementById('product-modal-title').textContent = `编辑产品 #${id}`;
     document.getElementById('p-brand').value = p.brand || '';
     document.getElementById('p-model').value = p.model || '';
     document.getElementById('p-spec').value = p.spec || '';
@@ -362,17 +365,49 @@
   }
 
   async function deleteProduct(id) {
-    if (!confirm(`确认删除产品 #${id}？其报价记录不会自动删除。`)) return;
+    if (!confirm(`确认删除产品 #${id}？其历史报价不会自动删除。`)) return;
     const r = await api.send(`/api/products/${id}`, 'DELETE');
     if (r.code !== 0) { toast(r.message); return; }
     toast('已删除');
     loadProducts();
   }
 
-  function openQuoteModal() {
+  async function openHistory(productId) {
+    const p = productCache[productId];
+    currentProductId = productId;
+    currentProductLabel = p ? `${p.brand} / ${p.model}` : `产品 #${productId}`;
+    document.getElementById('history-title').textContent = '历史报价';
+    document.getElementById('history-sub').textContent = currentProductLabel;
+    document.getElementById('history-body').innerHTML = '<tr><td colspan="5" class="empty">加载中…</td></tr>';
+    document.getElementById('history-modal').classList.add('open');
+
+    const r = await api.get(`/api/quotes?pageNo=1&pageSize=100&productId=${productId}`);
+    if (r.code !== 0) {
+      document.getElementById('history-body').innerHTML = `<tr><td colspan="5" class="empty">${esc(r.message)}</td></tr>`;
+      return;
+    }
+    const rows = r.data.records || [];
+    if (!rows.length) {
+      document.getElementById('history-body').innerHTML = '<tr><td colspan="5" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
+      return;
+    }
+    // 已按报价时间倒序（服务端），第一条为最新
+    document.getElementById('history-body').innerHTML = rows.map((q, idx) => `
+      <tr>
+        <td class="num">${Number(q.purchasePrice).toFixed(2)}</td>
+        <td class="num">${Number(q.quotePrice).toFixed(2)}</td>
+        <td class="muted">${fmtTime(q.quoteTime)}${idx === 0 ? '<span class="latest-tag">最新</span>' : ''}</td>
+        <td>${esc(q.remark || '')}</td>
+        <td>
+          <button class="ghost danger" onclick="deleteQuote(${q.id})">删除</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function openQuoteForm() {
     editingQuoteId = null;
-    document.getElementById('quote-modal-title').textContent = '新增报价';
-    document.getElementById('f-product-id').value = '';
+    document.getElementById('quote-modal-title').textContent = '录入报价';
+    document.getElementById('quote-sub').textContent = currentProductLabel;
     document.getElementById('f-purchase-price').value = '';
     document.getElementById('f-quote-price').value = '';
     document.getElementById('f-quote-time').value = '';
@@ -380,41 +415,30 @@
     document.getElementById('quote-modal').classList.add('open');
   }
 
-  function editQuote(q) {
-    editingQuoteId = q.id;
-    document.getElementById('quote-modal-title').textContent = `编辑报价 #${q.id}`;
-    document.getElementById('f-product-id').value = q.productId;
-    document.getElementById('f-purchase-price').value = q.purchasePrice;
-    document.getElementById('f-quote-price').value = q.quotePrice;
-    document.getElementById('f-quote-time').value = (q.quoteTime || '').slice(0, 16);
-    document.getElementById('f-remark').value = q.remark || '';
-    document.getElementById('quote-modal').classList.add('open');
-  }
-
   async function saveQuote() {
     const timeVal = document.getElementById('f-quote-time').value;
     const body = {
-      productId: Number(document.getElementById('f-product-id').value),
+      productId: currentProductId,
       purchasePrice: Number(document.getElementById('f-purchase-price').value),
       quotePrice: Number(document.getElementById('f-quote-price').value),
       quoteTime: timeVal ? timeVal + ':00' : null,
       remark: document.getElementById('f-remark').value,
     };
-    const r = editingQuoteId
-      ? await api.send(`/api/quotes/${editingQuoteId}`, 'PUT', body)
-      : await api.send('/api/quotes', 'POST', body);
+    const r = await api.send('/api/quotes', 'POST', body);
     if (r.code !== 0) { toast(r.message); return; }
     closeModal('quote-modal');
     toast('报价已保存');
-    loadQuotes();
+    openHistory(currentProductId);
+    loadProducts();
   }
 
   async function deleteQuote(id) {
-    if (!confirm(`确认删除报价 #${id}？`)) return;
+    if (!confirm(`确认删除报价记录 #${id}？`)) return;
     const r = await api.send(`/api/quotes/${id}`, 'DELETE');
     if (r.code !== 0) { toast(r.message); return; }
     toast('已删除');
-    loadQuotes();
+    openHistory(currentProductId);
+    loadProducts();
   }
 
   function closeModal(id) {

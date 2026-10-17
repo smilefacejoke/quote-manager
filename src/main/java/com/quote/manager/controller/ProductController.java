@@ -3,6 +3,7 @@ package com.quote.manager.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.quote.manager.common.ApiResponse;
 import com.quote.manager.dto.ProductSaveRequest;
+import com.quote.manager.dto.ProductWithQuoteVO;
 import com.quote.manager.entity.Product;
 import com.quote.manager.service.ProductService;
 import jakarta.validation.Valid;
@@ -17,12 +18,12 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public ApiResponse<Page<Product>> page(
+    public ApiResponse<Page<ProductWithQuoteVO>> page(
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) String model) {
-        return ApiResponse.ok(productService.page(pageNo, pageSize, brand, model));
+        return ApiResponse.ok(productService.pageWithLatestQuote(pageNo, pageSize, brand, model));
     }
 
     @GetMapping("/{id}")

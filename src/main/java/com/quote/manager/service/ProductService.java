@@ -4,17 +4,87 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.quote.manager.common.BizException;
 import com.quote.manager.dto.ProductSaveRequest;
+import com.quote.manager.dto.ProductWithQuoteVO;
 import com.quote.manager.entity.Product;
+import com.quote.manager.entity.Quote;
 import com.quote.manager.mapper.ProductMapper;
+import com.quote.manager.mapper.QuoteMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
     private final ProductMapper productMapper;
+    private final QuoteMapper quoteMapper;
+
+    public Page<ProductWithQuoteVO> pageWithLatestQuote(int pageNo, int pageSize, String brand, String model) {
+        Page<Product> productPage = page(pageNo, pageSize, brand, model);
+        List<Product> products = productPage.getRecords();
+        if (products.isEmpty()) {
+            return toEmptyVoPage(productPage);
+        }
+
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        Map<Long, Quote> latestByProduct = fetchLatestQuotes(productIds);
+
+        List<ProductWithQuoteVO> voList = products.stream().map(p -> {
+            ProductWithQuoteVO vo = new ProductWithQuoteVO();
+            vo.setId(p.getId());
+            vo.setBrand(p.getBrand());
+            vo.setModel(p.getModel());
+            vo.setSpec(p.getSpec());
+            vo.setCreatedAt(p.getCreatedAt());
+            Quote latest = latestByProduct.get(p.getId());
+            if (latest != null) {
+                vo.setLatestQuoteId(latest.getId());
+                vo.setPurchasePrice(latest.getPurchasePrice());
+                vo.setQuotePrice(latest.getQuotePrice());
+                vo.setQuoteTime(latest.getQuoteTime());
+            }
+            return vo;
+        }).toList();
+
+        Page<ProductWithQuoteVO> result = new Page<>(productPage.getCurrent(), productPage.getSize(), productPage.getTotal());
+        result.setRecords(voList);
+        return result;
+    }
+
+    private Map<Long, Quote> fetchLatestQuotes(List<Long> productIds) {
+        LambdaQueryWrapper<Quote> qw = new LambdaQueryWrapper<>();
+        qw.in(Quote::getProductId, productIds);
+        // 全量取出再按产品归并——本地小数据量下清晰可靠
+        List<Quote> quotes = quoteMapper.selectList(qw);
+        return quotes.stream().collect(Collectors.toMap(
+                Quote::getProductId,
+                Function.identity(),
+                (a, b) -> {
+                    // 保留报价时间更晚的一条；时间相同则 id 更大者更新
+                    if (a.getQuoteTime() == null && b.getQuoteTime() == null) {
+                        return a.getId() > b.getId() ? a : b;
+                    }
+                    if (a.getQuoteTime() == null) return b;
+                    if (b.getQuoteTime() == null) return a;
+                    int cmp = a.getQuoteTime().compareTo(b.getQuoteTime());
+                    if (cmp != 0) return cmp > 0 ? a : b;
+                    return a.getId() > b.getId() ? a : b;
+                }
+        ));
+    }
+
+    private Page<ProductWithQuoteVO> toEmptyVoPage(Page<Product> productPage) {
+        Page<ProductWithQuoteVO> result = new Page<>(productPage.getCurrent(), productPage.getSize(), productPage.getTotal());
+        result.setRecords(Collections.emptyList());
+        return result;
+    }
 
     public Page<Product> page(int pageNo, int pageSize, String brand, String model) {
         LambdaQueryWrapper<Product> qw = new LambdaQueryWrapper<>();
