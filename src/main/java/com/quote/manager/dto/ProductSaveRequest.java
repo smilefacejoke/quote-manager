@@ -3,6 +3,7 @@ package com.quote.manager.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+/** 新增/修改产品的请求体 */
 @Data
 public class ProductSaveRequest {
 

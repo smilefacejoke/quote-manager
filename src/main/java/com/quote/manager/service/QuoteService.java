@@ -9,8 +9,12 @@ import com.quote.manager.mapper.QuoteMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * 报价记录维护。一条报价挂在某个产品下，同一产品可有多次报价（历史轨迹）。
+ */
 @Service
 @RequiredArgsConstructor
 public class QuoteService {
@@ -18,6 +22,7 @@ public class QuoteService {
     private final QuoteMapper quoteMapper;
     private final ProductService productService;
 
+    /** 按产品过滤，报价时间倒序（最新在前） */
     public Page<Quote> page(int pageNo, int pageSize, Long productId) {
         LambdaQueryWrapper<Quote> qw = new LambdaQueryWrapper<>();
         if (productId != null) {
@@ -35,6 +40,7 @@ public class QuoteService {
         return quote;
     }
 
+    /** 录入报价；报价时间不传则默认当前时间 */
     public Quote create(QuoteSaveRequest req) {
         productService.getById(req.getProductId());
         validatePrice(req.getPurchasePrice(), req.getQuotePrice());
@@ -70,7 +76,11 @@ public class QuoteService {
         quoteMapper.deleteById(id);
     }
 
-    private void validatePrice(java.math.BigDecimal purchasePrice, java.math.BigDecimal quotePrice) {
+    /**
+     * 业务规则：报价不能低于采购价，否则就是亏本报价。
+     * 这条规则只有业务方清楚，必须写进代码而不是靠人记。
+     */
+    private void validatePrice(BigDecimal purchasePrice, BigDecimal quotePrice) {
         if (purchasePrice.compareTo(quotePrice) > 0) {
             throw new BizException("业务规则：采购价不能大于报价（采购价=" + purchasePrice + "，报价=" + quotePrice + "）");
         }

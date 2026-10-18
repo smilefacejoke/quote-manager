@@ -7,6 +7,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/** 录入/修改报价的请求体 */
 @Data
 public class QuoteSaveRequest {
 

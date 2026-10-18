@@ -11,6 +11,7 @@ import com.quote.manager.mapper.ProductMapper;
 import com.quote.manager.mapper.QuoteMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
@@ -19,6 +20,10 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 产品维护 + 产品视角的报价聚合。
+ * 报价的录入/删除见 {@link QuoteService}。
+ */
 @Service
 @RequiredArgsConstructor
 public class ProductService {
@@ -26,6 +31,10 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final QuoteMapper quoteMapper;
 
+    /**
+     * 产品分页，并附带每条产品「最新一条」报价。
+     * 列表页展示采购价/报价用最新值；历史轨迹走报价查询接口。
+     */
     public Page<ProductWithQuoteVO> pageWithLatestQuote(int pageNo, int pageSize, String brand, String model) {
         Page<Product> productPage = page(pageNo, pageSize, brand, model);
         List<Product> products = productPage.getRecords();
@@ -58,16 +67,19 @@ public class ProductService {
         return result;
     }
 
+    /**
+     * 批量取出各产品的最新报价。
+     * 本地小数据量下「查全量再归并」比写关联子查询更直观；数据量上来再换 SQL。
+     */
     private Map<Long, Quote> fetchLatestQuotes(List<Long> productIds) {
         LambdaQueryWrapper<Quote> qw = new LambdaQueryWrapper<>();
         qw.in(Quote::getProductId, productIds);
-        // 全量取出再按产品归并——本地小数据量下清晰可靠
         List<Quote> quotes = quoteMapper.selectList(qw);
         return quotes.stream().collect(Collectors.toMap(
                 Quote::getProductId,
                 Function.identity(),
+                // 同一产品的多条报价：时间更晚者更新；时间相同则 id 更大者视为更新
                 (a, b) -> {
-                    // 保留报价时间更晚的一条；时间相同则 id 更大者更新
                     if (a.getQuoteTime() == null && b.getQuoteTime() == null) {
                         return a.getId() > b.getId() ? a : b;
                     }
@@ -86,6 +98,7 @@ public class ProductService {
         return result;
     }
 
+    /** 品牌/型号模糊过滤，按 id 倒序 */
     public Page<Product> page(int pageNo, int pageSize, String brand, String model) {
         LambdaQueryWrapper<Product> qw = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(brand)) {
@@ -126,11 +139,21 @@ public class ProductService {
         return existing;
     }
 
+    /**
+     * 删除产品时必须一并清掉它的报价历史。
+     * 否则 quote 表留下孤儿记录，后续按产品统计会对不上账。
+     * 整个删除放在同一事务里：报价删失败则产品也不删。
+     */
+    @Transactional
     public void delete(Long id) {
-        getById(id);
-        productMapper.deleteById(id);
+        Product product = getById(id);
+        LambdaQueryWrapper<Quote> qw = new LambdaQueryWrapper<>();
+        qw.eq(Quote::getProductId, product.getId());
+        quoteMapper.delete(qw);
+        productMapper.deleteById(product.getId());
     }
 
+    /** 同品牌 + 同型号视为同一物料，不允许重复建档 */
     private void checkDuplicate(String brand, String model, Long excludeId) {
         LambdaQueryWrapper<Product> qw = new LambdaQueryWrapper<>();
         qw.eq(Product::getBrand, brand.trim())
