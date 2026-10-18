@@ -48,8 +48,4 @@ mvn spring-boot:run
 | PUT | `/api/quotes/{id}` | 更新报价 |
 | DELETE | `/api/quotes/{id}` | 删除报价 |
 
-## Vibe Coding 练习建议
 
-1. 每改一个功能就 `git commit`，崩了好回退
-2. 把需求写成验收标准再交给 AI，例如：「产品列表支持按品牌模糊查询」
-3. 报错时贴完整堆栈，不要自己转述
