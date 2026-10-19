@@ -178,6 +178,7 @@
     <input id="q-brand" placeholder="品牌筛选" style="width:140px" />
     <input id="q-model" placeholder="型号筛选" style="width:160px" />
     <button class="ghost" onclick="loadProducts()">查询</button>
+    <button class="ghost" onclick="exportCsv()">导出 CSV</button>
     <button class="primary" onclick="openProductModal()">+ 新增产品</button>
   </div>
   <table>
@@ -294,6 +295,16 @@
     if (next < 1) return;
     productPage = next;
     loadProducts();
+  }
+
+  /** 按当前筛选条件导出 CSV（浏览器直接下载） */
+  function exportCsv() {
+    const brand = document.getElementById('q-brand').value.trim();
+    const model = document.getElementById('q-model').value.trim();
+    let url = '/api/products/export?';
+    if (brand) url += `brand=${encodeURIComponent(brand)}&`;
+    if (model) url += `model=${encodeURIComponent(model)}&`;
+    window.location.href = url;
   }
 
   async function loadProducts() {

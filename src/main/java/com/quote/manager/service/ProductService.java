@@ -100,6 +100,34 @@ public class ProductService {
         return result;
     }
 
+    /** 全量导出用：按筛选条件取全部产品 + 最新报价，不分页 */
+    public List<ProductWithQuoteVO> listWithLatestQuote(String brand, String model) {
+        Page<Product> productPage = page(1, Integer.MAX_VALUE, brand, model);
+        List<Product> products = productPage.getRecords();
+        if (products.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        Map<Long, Quote> latestByProduct = fetchLatestQuotes(productIds);
+
+        return products.stream().map(p -> {
+            ProductWithQuoteVO vo = new ProductWithQuoteVO();
+            vo.setId(p.getId());
+            vo.setBrand(p.getBrand());
+            vo.setModel(p.getModel());
+            vo.setSpec(p.getSpec());
+            vo.setCreatedAt(p.getCreatedAt());
+            Quote latest = latestByProduct.get(p.getId());
+            if (latest != null) {
+                vo.setLatestQuoteId(latest.getId());
+                vo.setPurchasePrice(latest.getPurchasePrice());
+                vo.setQuotePrice(latest.getQuotePrice());
+                vo.setQuoteTime(latest.getQuoteTime());
+            }
+            return vo;
+        }).toList();
+    }
+
     /** 品牌/型号模糊过滤，按 id 倒序 */
     public Page<Product> page(int pageNo, int pageSize, String brand, String model) {
         LambdaQueryWrapper<Product> qw = new LambdaQueryWrapper<>();
@@ -132,6 +160,8 @@ public class ProductService {
         product.setBrand(req.getBrand().trim());
         product.setModel(req.getModel().trim());
         product.setSpec(req.getSpec());
+        // DB 默认值不会回填到实体，这里主动赋值，保证创建响应里能看到建档时间
+        product.setCreatedAt(LocalDateTime.now());
         productMapper.insert(product);
 
         createInitialQuoteIfNeeded(product.getId(), req);

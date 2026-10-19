@@ -8,7 +8,17 @@ import com.quote.manager.entity.Product;
 import com.quote.manager.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 产品档案接口。
@@ -33,6 +43,45 @@ public class ProductController {
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) String model) {
         return ApiResponse.ok(productService.pageWithLatestQuote(pageNo, pageSize, brand, model));
+    }
+
+    /**
+     * 导出产品（含最新报价）为 CSV，筛选条件与列表一致。
+     * GET /api/products/export?brand=&model=
+     * Excel 直接打开：带 UTF-8 BOM，中文不乱码。
+     */
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportCsv(
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String model) {
+        // 本地工具类，一次导出全量匹配行；量大再改分页/流式
+        List<ProductWithQuoteVO> rows = productService.listWithLatestQuote(brand, model);
+
+        String header = "ID,品牌,型号,规格,采购价,报价,报价时间,建档时间";
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        String body = rows.stream()
+                .map(p -> String.join(",",
+                        String.valueOf(p.getId()),
+                        csv(p.getBrand()),
+                        csv(p.getModel()),
+                        csv(p.getSpec()),
+                        p.getPurchasePrice() != null ? p.getPurchasePrice().toPlainString() : "",
+                        p.getQuotePrice() != null ? p.getQuotePrice().toPlainString() : "",
+                        p.getQuoteTime() != null ? p.getQuoteTime().format(fmt) : "",
+                        p.getCreatedAt() != null ? p.getCreatedAt().format(fmt) : ""))
+                .collect(Collectors.joining("\n"));
+
+        // UTF-8 BOM：Excel 打开中文不乱码
+        byte[] content = ("\uFEFF" + header + "\n" + body + "\n").getBytes(StandardCharsets.UTF_8);
+
+        String filename = URLEncoder.encode(
+                "产品报价_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv",
+                StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .contentLength(content.length)
+                .body(content);
     }
 
     /** 按 id 查单个产品（不含报价信息） */
@@ -65,5 +114,16 @@ public class ProductController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         productService.delete(id);
         return ApiResponse.ok(null);
+    }
+
+    /** CSV 字段转义：有逗号/引号/换行时加引号包裹 */
+    private static String csv(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        if (raw.contains(",") || raw.contains("\"") || raw.contains("\n")) {
+            return "\"" + raw.replace("\"", "\"\"") + "\"";
+        }
+        return raw;
     }
 }
