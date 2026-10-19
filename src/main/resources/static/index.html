@@ -175,7 +175,9 @@
 
 <main>
   <div class="toolbar">
-    <input id="q-brand" placeholder="品牌筛选" style="width:140px" />
+    <select id="q-brand" style="width:150px">
+      <option value="">全部品牌</option>
+    </select>
     <input id="q-model" placeholder="型号筛选" style="width:160px" />
     <button class="ghost" onclick="loadProducts()">查询</button>
     <button class="ghost" onclick="exportCsv()">导出 CSV</button>
@@ -290,6 +292,20 @@
     setTimeout(() => el.classList.remove('show'), 2200);
   }
 
+  /** 加载品牌下拉选项（保留当前选中值） */
+  async function loadBrands() {
+    const select = document.getElementById('q-brand');
+    const current = select.value;
+    const r = await api.get('/api/products/brands');
+    if (r.code !== 0) { toast(r.message); return; }
+    const brands = r.data || [];
+    select.innerHTML = '<option value="">全部品牌</option>'
+      + brands.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+    if (current && brands.includes(current)) {
+      select.value = current;
+    }
+  }
+
   function pageProducts(delta) {
     const next = productPage + delta;
     if (next < 1) return;
@@ -395,6 +411,7 @@
     if (r.code !== 0) { toast(r.message); return; }
     closeModal('product-modal');
     toast(editingProductId ? '产品已保存' : '产品已创建');
+    loadBrands();
     loadProducts();
   }
 
@@ -498,7 +515,7 @@
     return t ? String(t).replace('T', ' ').slice(0, 19) : '';
   }
 
-  loadProducts();
+  loadBrands().then(loadProducts);
 </script>
 </body>
 </html>

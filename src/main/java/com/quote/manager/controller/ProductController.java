@@ -46,6 +46,15 @@ public class ProductController {
     }
 
     /**
+     * 品牌下拉选项：库内去重品牌（字典序）。
+     * GET /api/products/brands
+     */
+    @GetMapping("/brands")
+    public ApiResponse<List<String>> brands() {
+        return ApiResponse.ok(productService.listBrands());
+    }
+
+    /**
      * 导出产品（含最新报价）为 CSV，筛选条件与列表一致。
      * GET /api/products/export?brand=&model=
      * Excel 直接打开：带 UTF-8 BOM，中文不乱码。

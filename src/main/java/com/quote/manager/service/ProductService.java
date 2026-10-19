@@ -141,6 +141,19 @@ public class ProductService {
         return productMapper.selectPage(new Page<>(pageNo, pageSize), qw);
     }
 
+    /** 品牌下拉用：去重后的全部品牌，按字典序 */
+    public List<String> listBrands() {
+        List<Product> products = productMapper.selectList(new LambdaQueryWrapper<Product>()
+                .select(Product::getBrand));
+        return products.stream()
+                .map(Product::getBrand)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
     public Product getById(Long id) {
         Product product = productMapper.selectById(id);
         if (product == null) {
