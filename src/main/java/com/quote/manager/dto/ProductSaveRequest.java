@@ -3,7 +3,14 @@ package com.quote.manager.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-/** 新增/修改产品的请求体 */
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/**
+ * 新增/修改产品的请求体。
+ * 采购价/报价/报价时间仅在「新增」时用于顺带写入第一条报价，均为可选；
+ * 只要填了价格就必须成对填写，且采购价 ≤ 报价。
+ */
 @Data
 public class ProductSaveRequest {
 
@@ -14,4 +21,13 @@ public class ProductSaveRequest {
     private String model;
 
     private String spec;
+
+    /** 可选：初始采购价 */
+    private BigDecimal purchasePrice;
+
+    /** 可选：初始报价 */
+    private BigDecimal quotePrice;
+
+    /** 可选：初始报价时间，不传默认当前 */
+    private LocalDateTime quoteTime;
 }

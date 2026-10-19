@@ -205,10 +205,13 @@
 <div class="modal-backdrop" id="product-modal">
   <div class="modal">
     <h3 id="product-modal-title">新增产品</h3>
-    <p class="sub">报价在保存产品后，通过「报价」按钮录入</p>
+    <p class="sub" id="product-modal-sub">价格为可选：填写则顺带记录第一条报价；后续可在「报价」里追加</p>
     <div class="field"><label>品牌 *</label><input id="p-brand" /></div>
     <div class="field"><label>型号 *</label><input id="p-model" /></div>
     <div class="field"><label>规格</label><input id="p-spec" /></div>
+    <div class="field"><label>采购价（可选）</label><input id="p-purchase-price" type="number" step="0.01" min="0" /></div>
+    <div class="field"><label>报价（可选）</label><input id="p-quote-price" type="number" step="0.01" min="0" /></div>
+    <div class="field"><label>报价时间（可选，默认当前）</label><input id="p-quote-time" type="datetime-local" /></div>
     <div class="modal-actions">
       <button class="ghost" onclick="closeModal('product-modal')">取消</button>
       <button class="primary" onclick="saveProduct()">保存</button>
@@ -332,9 +335,14 @@
   function openProductModal() {
     editingProductId = null;
     document.getElementById('product-modal-title').textContent = '新增产品';
+    document.getElementById('product-modal-sub').textContent =
+      '价格为可选：填写则顺带记录第一条报价；后续可在「报价」里追加';
     document.getElementById('p-brand').value = '';
     document.getElementById('p-model').value = '';
     document.getElementById('p-spec').value = '';
+    document.getElementById('p-purchase-price').value = '';
+    document.getElementById('p-quote-price').value = '';
+    document.getElementById('p-quote-time').value = nowForDateTimeLocal();
     document.getElementById('product-modal').classList.add('open');
   }
 
@@ -343,9 +351,15 @@
     if (!p) { toast('数据未加载'); return; }
     editingProductId = id;
     document.getElementById('product-modal-title').textContent = `编辑产品 #${id}`;
+    document.getElementById('product-modal-sub').textContent =
+      '编辑仅改基础信息；改价请用「报价」录入新报价';
     document.getElementById('p-brand').value = p.brand || '';
     document.getElementById('p-model').value = p.model || '';
     document.getElementById('p-spec').value = p.spec || '';
+    // 编辑不改价格，隐藏可选报价输入避免误解
+    document.getElementById('p-purchase-price').value = '';
+    document.getElementById('p-quote-price').value = '';
+    document.getElementById('p-quote-time').value = '';
     document.getElementById('product-modal').classList.add('open');
   }
 
@@ -355,12 +369,21 @@
       model: document.getElementById('p-model').value,
       spec: document.getElementById('p-spec').value,
     };
+    // 新增时才带上可选报价；编辑不覆盖历史
+    if (!editingProductId) {
+      const purchaseVal = document.getElementById('p-purchase-price').value;
+      const quoteVal = document.getElementById('p-quote-price').value;
+      const timeVal = document.getElementById('p-quote-time').value;
+      if (purchaseVal !== '') body.purchasePrice = Number(purchaseVal);
+      if (quoteVal !== '') body.quotePrice = Number(quoteVal);
+      if (timeVal) body.quoteTime = timeVal + ':00';
+    }
     const r = editingProductId
       ? await api.send(`/api/products/${editingProductId}`, 'PUT', body)
       : await api.send('/api/products', 'POST', body);
     if (r.code !== 0) { toast(r.message); return; }
     closeModal('product-modal');
-    toast('产品已保存');
+    toast(editingProductId ? '产品已保存' : '产品已创建');
     loadProducts();
   }
 

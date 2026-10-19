@@ -41,7 +41,11 @@ public class ProductController {
         return ApiResponse.ok(productService.getById(id));
     }
 
-    /** 新增产品；品牌+型号不能重复 */
+    /**
+     * 新增产品；品牌+型号不能重复。
+     * purchasePrice / quotePrice / quoteTime 均可选——填了价格则同事务写入第一条报价
+     * （价格需成对填写，且采购价 ≤ 报价）。
+     */
     @PostMapping
     public ApiResponse<Product> create(@Valid @RequestBody ProductSaveRequest req) {
         return ApiResponse.ok(productService.create(req));

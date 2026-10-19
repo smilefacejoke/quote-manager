@@ -3,6 +3,7 @@ package com.quote.manager.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.quote.manager.common.BizException;
+import com.quote.manager.common.PriceRules;
 import com.quote.manager.dto.ProductSaveRequest;
 import com.quote.manager.dto.ProductWithQuoteVO;
 import com.quote.manager.entity.Product;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +121,11 @@ public class ProductService {
         return product;
     }
 
+    /**
+     * 新增产品；若请求里带了价格，同事务顺带写入第一条报价。
+     * 价格字段可选，但必须成对填写且采购价 ≤ 报价。
+     */
+    @Transactional
     public Product create(ProductSaveRequest req) {
         checkDuplicate(req.getBrand(), req.getModel(), null);
         Product product = new Product();
@@ -126,9 +133,33 @@ public class ProductService {
         product.setModel(req.getModel().trim());
         product.setSpec(req.getSpec());
         productMapper.insert(product);
+
+        createInitialQuoteIfNeeded(product.getId(), req);
         return product;
     }
 
+    /** 价格都留空则只建档不报价；填了才校验并落一条历史 */
+    private void createInitialQuoteIfNeeded(Long productId, ProductSaveRequest req) {
+        if (req.getPurchasePrice() == null && req.getQuotePrice() == null) {
+            return;
+        }
+        PriceRules.validatePair(req.getPurchasePrice(), req.getQuotePrice());
+        PriceRules.validateNotBelowCost(req.getPurchasePrice(), req.getQuotePrice());
+
+        Quote quote = new Quote();
+        quote.setProductId(productId);
+        quote.setPurchasePrice(req.getPurchasePrice());
+        quote.setQuotePrice(req.getQuotePrice());
+        quote.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
+        quote.setRemark("建档报价");
+        quoteMapper.insert(quote);
+    }
+
+    /**
+     * 更新产品基础信息。不触碰历史报价；
+     * 即使请求里带了价格也不覆盖（编辑场景以「录入新报价」为准）。
+     */
+    @Transactional
     public Product update(Long id, ProductSaveRequest req) {
         Product existing = getById(id);
         checkDuplicate(req.getBrand(), req.getModel(), id);
