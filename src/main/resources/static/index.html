@@ -208,6 +208,12 @@
     <tbody id="product-body"></tbody>
   </table>
   <div class="toolbar" style="margin-top:12px">
+    <span class="muted">每页行数</span>
+    <select id="page-size" style="width:80px" onchange="changePageSize()">
+      <option value="50">50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+    </select>
     <button class="ghost" onclick="pageProducts(-1)">上一页</button>
     <span class="muted" id="product-page-info">第 1 页</span>
     <button class="ghost" onclick="pageProducts(1)">下一页</button>
@@ -294,6 +300,7 @@
   };
 
   let productPage = 1;
+  let productPageSize = 50;
   let editingProductId = null;
   let currentProductId = null;
   let currentProductLabel = '';
@@ -328,6 +335,13 @@
     loadProducts();
   }
 
+  /** 切换每页行数：回到第 1 页后重载，避免落在空白页 */
+  function changePageSize() {
+    productPageSize = Number(document.getElementById('page-size').value);
+    productPage = 1;
+    loadProducts();
+  }
+
   /** 按当前筛选条件导出 CSV（浏览器直接下载） */
   function exportCsv() {
     const brand = document.getElementById('q-brand').value.trim();
@@ -341,7 +355,7 @@
   async function loadProducts() {
     const brand = document.getElementById('q-brand').value.trim();
     const model = document.getElementById('q-model').value.trim();
-    let url = `/api/products?pageNo=${productPage}&pageSize=10`;
+    let url = `/api/products?pageNo=${productPage}&pageSize=${productPageSize}`;
     if (brand) url += `&brand=${encodeURIComponent(brand)}`;
     if (model) url += `&model=${encodeURIComponent(model)}`;
     const r = await api.get(url);
