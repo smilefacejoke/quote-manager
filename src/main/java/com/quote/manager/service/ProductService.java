@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +34,7 @@ public class ProductService {
 
     private final ProductMapper productMapper;
     private final QuoteMapper quoteMapper;
+    private final ExchangeRateService exchangeRateService;
 
     /**
      * 产品分页，并附带每条产品「最新一条」报价。
@@ -60,6 +63,8 @@ public class ProductService {
                 vo.setPurchasePrice(latest.getPurchasePrice());
                 vo.setQuotePrice(latest.getQuotePrice());
                 vo.setQuantity(latest.getQuantity());
+                vo.setQuoteUsd(latest.getQuoteUsd());
+                vo.setQuoteTotalUsd(latest.getQuoteTotalUsd());
                 vo.setQuoteTime(latest.getQuoteTime());
             }
             return vo;
@@ -124,6 +129,8 @@ public class ProductService {
                 vo.setPurchasePrice(latest.getPurchasePrice());
                 vo.setQuotePrice(latest.getQuotePrice());
                 vo.setQuantity(latest.getQuantity());
+                vo.setQuoteUsd(latest.getQuoteUsd());
+                vo.setQuoteTotalUsd(latest.getQuoteTotalUsd());
                 vo.setQuoteTime(latest.getQuoteTime());
             }
             return vo;
@@ -196,6 +203,7 @@ public class ProductService {
         quote.setPurchasePrice(req.getPurchasePrice());
         quote.setQuotePrice(req.getQuotePrice());
         quote.setQuantity(req.getQuantity());
+        applyUsd(quote);
         quote.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
         quote.setRemark("建档报价");
         quoteMapper.insert(quote);
@@ -241,6 +249,7 @@ public class ProductService {
             quote.setPurchasePrice(req.getPurchasePrice());
             quote.setQuotePrice(req.getQuotePrice());
             quote.setQuantity(req.getQuantity());
+            applyUsd(quote);
             quote.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
             quote.setRemark("编辑补录");
             quoteMapper.insert(quote);
@@ -254,6 +263,7 @@ public class ProductService {
         if (hasQty) {
             latest.setQuantity(req.getQuantity());
         }
+        applyUsd(latest);
         // 编辑动作时间即为本次报价时间
         latest.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
         quoteMapper.updateById(latest);
@@ -294,4 +304,18 @@ public class ProductService {
             throw new BizException("同品牌同型号已存在: " + brand + " / " + model);
         }
     }
+
+    /** 按当日业务汇率写入报价USD与总额USD */
+    private void applyUsd(Quote quote) {
+        BigDecimal rate = exchangeRateService.getTodayUsedRate();
+        quote.setQuoteUsd(ExchangeRateService.cnyToUsd(quote.getQuotePrice(), rate));
+        if (quote.getQuantity() != null && quote.getQuoteUsd() != null) {
+            quote.setQuoteTotalUsd(quote.getQuoteUsd()
+                    .multiply(BigDecimal.valueOf(quote.getQuantity()))
+                    .setScale(2, RoundingMode.HALF_UP));
+        } else {
+            quote.setQuoteTotalUsd(null);
+        }
+    }
+
 }

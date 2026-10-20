@@ -5,7 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 产品 + 最新一条报价（含需求量） */
+/** 产品 + 最新一条报价（含需求量与 USD 金额） */
 @Data
 public class ProductWithQuoteVO {
 
@@ -21,5 +21,9 @@ public class ProductWithQuoteVO {
     private BigDecimal quotePrice;
     /** 最新需求数量 */
     private Integer quantity;
+    /** 报价(USD) */
+    private BigDecimal quoteUsd;
+    /** 报价总额(USD) = 报价USD * 数量 */
+    private BigDecimal quoteTotalUsd;
     private LocalDateTime quoteTime;
 }

@@ -168,9 +168,16 @@
   </style>
 </head>
 <body>
-<header>
-  <h1>型号报价管理系统</h1>
-  <p>列表显示最新报价 · 点击型号查看历史报价</p>
+<header style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+  <div>
+    <h1>型号报价管理系统</h1>
+    <p>列表显示最新报价 · 点击型号查看历史报价</p>
+  </div>
+  <div style="text-align:right">
+    <div class="muted" style="font-size:11px">今日美元汇率</div>
+    <div id="today-rate" style="font-size:20px;font-weight:600;font-variant-numeric:tabular-nums">—</div>
+    <div class="muted" style="font-size:11px">1 USD = <span id="today-rate-detail">—</span> CNY</div>
+  </div>
 </header>
 
 <main>
@@ -191,6 +198,8 @@
         <th class="num">需求数量</th>
         <th class="num">采购价</th>
         <th class="num">报价</th>
+        <th class="num">报价(USD)</th>
+        <th class="num">报价总额(USD)</th>
         <th>报价时间</th>
         <th style="width:190px">操作</th>
         <th>备注</th>
@@ -235,6 +244,8 @@
           <th>采购价</th>
           <th>报价</th>
           <th>数量</th>
+          <th>报价(USD)</th>
+          <th>总额(USD)</th>
           <th>报价时间</th>
           <th>备注</th>
           <th style="width:70px"></th>
@@ -340,7 +351,7 @@
     document.getElementById('product-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
     const body = document.getElementById('product-body');
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="8" class="empty">暂无数据</td></tr>';
+      body.innerHTML = '<tr><td colspan="10" class="empty">暂无数据</td></tr>';
       return;
     }
     rows.forEach(p => { productCache[p.id] = p; });
@@ -354,6 +365,8 @@
         <td class="num ${hasQty ? '' : 'no-quote'}">${hasQty ? p.quantity : '—'}</td>
         <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.purchasePrice).toFixed(2) : '—'}</td>
         <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
+        <td class="num ${p.quoteUsd != null ? '' : 'no-quote'}">${p.quoteUsd != null ? Number(p.quoteUsd).toFixed(2) : '—'}</td>
+        <td class="num ${p.quoteTotalUsd != null ? '' : 'no-quote'}">${p.quoteTotalUsd != null ? Number(p.quoteTotalUsd).toFixed(2) : '—'}</td>
         <td class="muted">${hasQuote ? fmtTime(p.quoteTime) : '暂无报价'}</td>
         <td class="actions">
           <button class="ghost" onclick="event.stopPropagation(); openHistory(${p.id})">报价</button>
@@ -442,17 +455,17 @@
     currentProductLabel = p ? `${p.brand} / ${p.model}` : `产品 #${productId}`;
     document.getElementById('history-title').textContent = '历史报价';
     document.getElementById('history-sub').textContent = currentProductLabel;
-    document.getElementById('history-body').innerHTML = '<tr><td colspan="6" class="empty">加载中…</td></tr>';
+    document.getElementById('history-body').innerHTML = '<tr><td colspan="8" class="empty">加载中…</td></tr>';
     document.getElementById('history-modal').classList.add('open');
 
     const r = await api.get(`/api/quotes?pageNo=1&pageSize=100&productId=${productId}`);
     if (r.code !== 0) {
-      document.getElementById('history-body').innerHTML = `<tr><td colspan="6" class="empty">${esc(r.message)}</td></tr>`;
+      document.getElementById('history-body').innerHTML = `<tr><td colspan="8" class="empty">${esc(r.message)}</td></tr>`;
       return;
     }
     const rows = r.data.records || [];
     if (!rows.length) {
-      document.getElementById('history-body').innerHTML = '<tr><td colspan="6" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
+      document.getElementById('history-body').innerHTML = '<tr><td colspan="8" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
       return;
     }
     // 已按报价时间倒序（服务端），第一条为最新
@@ -461,6 +474,8 @@
         <td class="num">${Number(q.purchasePrice).toFixed(2)}</td>
         <td class="num">${Number(q.quotePrice).toFixed(2)}</td>
         <td class="num">${q.quantity != null ? q.quantity : '—'}</td>
+        <td class="num">${q.quoteUsd != null ? Number(q.quoteUsd).toFixed(2) : '—'}</td>
+        <td class="num">${q.quoteTotalUsd != null ? Number(q.quoteTotalUsd).toFixed(2) : '—'}</td>
         <td class="muted">${fmtTime(q.quoteTime)}${idx === 0 ? '<span class="latest-tag">最新</span>' : ''}</td>
         <td>${esc(q.remark || '')}</td>
         <td>
@@ -530,6 +545,20 @@
     return t ? String(t).replace('T', ' ').slice(0, 19) : '';
   }
 
+  async function loadTodayRate() {
+    const r = await api.get('/api/rates/today');
+    if (r.code !== 0) {
+      document.getElementById('today-rate').textContent = '获取失败';
+      return;
+    }
+    // 加粗：业务汇率 1 位小数；灰色小字：精确汇率 3 位小数
+    const used = Number(r.data.rateUsed).toFixed(1);
+    const precise = Number(r.data.rateDisplay).toFixed(3);
+    document.getElementById('today-rate').textContent = used + ' CNY';
+    document.getElementById('today-rate-detail').textContent = precise;
+  }
+
+  loadTodayRate();
   loadBrands().then(loadProducts);
 </script>
 </body>
