@@ -5,19 +5,21 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 产品 + 最新一条报价 */
+/** 产品 + 最新一条报价（含需求量） */
 @Data
 public class ProductWithQuoteVO {
 
     private Long id;
     private String brand;
     private String model;
-    private String spec;
+    private String remark;
     private LocalDateTime createdAt;
 
     /** 最新报价，无报价时为 null */
     private Long latestQuoteId;
     private BigDecimal purchasePrice;
     private BigDecimal quotePrice;
+    /** 最新需求数量 */
+    private Integer quantity;
     private LocalDateTime quoteTime;
 }

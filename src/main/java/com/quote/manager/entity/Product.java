@@ -21,8 +21,8 @@ public class Product {
     /** 型号，如：Mate 60 Pro；与品牌联合唯一 */
     private String model;
 
-    /** 规格/描述，如：12+512G */
-    private String spec;
+    /** 备注（含原规格信息，如 12+512G） */
+    private String remark;
 
     /** 建档时间 */
     private LocalDateTime createdAt;

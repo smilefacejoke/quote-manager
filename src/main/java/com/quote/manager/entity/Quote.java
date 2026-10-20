@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /**
  * 报价记录表 quote。
- * 一个产品可有多条，形成价格历史。
+ * 一个产品可有多条，形成价格历史；quantity 为当次需求数量。
  */
 @Data
 @TableName("quote")
@@ -27,6 +27,9 @@ public class Quote {
 
     /** 对外报价 */
     private BigDecimal quotePrice;
+
+    /** 当次需求数量 */
+    private Integer quantity;
 
     /** 报价时间 */
     private LocalDateTime quoteTime;

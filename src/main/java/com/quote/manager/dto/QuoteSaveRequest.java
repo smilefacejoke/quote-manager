@@ -22,6 +22,9 @@ public class QuoteSaveRequest {
     @DecimalMin(value = "0", message = "报价不能为负数")
     private BigDecimal quotePrice;
 
+    /** 当次需求数量，可选 */
+    private Integer quantity;
+
     /** 不传则默认当前时间 */
     private LocalDateTime quoteTime;
 

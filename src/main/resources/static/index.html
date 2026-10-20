@@ -188,11 +188,12 @@
       <tr>
         <th>品牌</th>
         <th>型号</th>
-        <th>规格</th>
+        <th class="num">需求数量</th>
         <th class="num">采购价</th>
         <th class="num">报价</th>
         <th>报价时间</th>
         <th style="width:190px">操作</th>
+        <th>备注</th>
       </tr>
     </thead>
     <tbody id="product-body"></tbody>
@@ -211,9 +212,10 @@
     <p class="sub" id="product-modal-sub">价格为可选：填写则顺带记录第一条报价；后续可在「报价」里追加</p>
     <div class="field"><label>品牌 *</label><input id="p-brand" /></div>
     <div class="field"><label>型号 *</label><input id="p-model" /></div>
-    <div class="field"><label>规格</label><input id="p-spec" /></div>
+    <div class="field"><label>备注（规格等）</label><input id="p-remark" /></div>
     <div class="field"><label>采购价（可选）</label><input id="p-purchase-price" type="number" step="0.01" min="0" /></div>
     <div class="field"><label>报价（可选）</label><input id="p-quote-price" type="number" step="0.01" min="0" /></div>
+    <div class="field"><label>需求数量（可选）</label><input id="p-quantity" type="number" min="0" step="1" /></div>
     <div class="field"><label>报价时间（可选，默认当前）</label><input id="p-quote-time" type="datetime-local" /></div>
     <div class="modal-actions">
       <button class="ghost" onclick="closeModal('product-modal')">取消</button>
@@ -232,6 +234,7 @@
         <tr>
           <th>采购价</th>
           <th>报价</th>
+          <th>数量</th>
           <th>报价时间</th>
           <th>备注</th>
           <th style="width:70px"></th>
@@ -253,6 +256,7 @@
     <p class="sub" id="quote-sub"></p>
     <div class="field"><label>采购价 *</label><input id="f-purchase-price" type="number" step="0.01" /></div>
     <div class="field"><label>报价 *</label><input id="f-quote-price" type="number" step="0.01" /></div>
+    <div class="field"><label>需求数量</label><input id="f-quantity" type="number" min="0" step="1" /></div>
     <div class="field"><label>报价时间</label><input id="f-quote-time" type="datetime-local" /></div>
     <div class="field"><label>备注</label><textarea id="f-remark" rows="2"></textarea></div>
     <div class="modal-actions">
@@ -336,17 +340,18 @@
     document.getElementById('product-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
     const body = document.getElementById('product-body');
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="7" class="empty">暂无数据</td></tr>';
+      body.innerHTML = '<tr><td colspan="8" class="empty">暂无数据</td></tr>';
       return;
     }
     rows.forEach(p => { productCache[p.id] = p; });
     body.innerHTML = rows.map(p => {
       const hasQuote = p.purchasePrice != null;
+      const hasQty = p.quantity != null;
       return `
       <tr class="clickable" onclick="openHistory(${p.id})">
         <td>${esc(p.brand)}</td>
         <td><span class="model-link">${esc(p.model)}</span></td>
-        <td class="muted">${esc(p.spec || '')}</td>
+        <td class="num ${hasQty ? '' : 'no-quote'}">${hasQty ? p.quantity : '—'}</td>
         <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.purchasePrice).toFixed(2) : '—'}</td>
         <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
         <td class="muted">${hasQuote ? fmtTime(p.quoteTime) : '暂无报价'}</td>
@@ -355,6 +360,7 @@
           <button class="ghost" onclick="event.stopPropagation(); editProduct(${p.id})">编辑</button>
           <button class="ghost danger" onclick="event.stopPropagation(); deleteProduct(${p.id})">删除</button>
         </td>
+        <td class="muted">${esc(p.remark || '')}</td>
       </tr>`;
     }).join('');
   }
@@ -366,9 +372,10 @@
       '价格为可选：填写则顺带记录第一条报价；后续可在「报价」里追加';
     document.getElementById('p-brand').value = '';
     document.getElementById('p-model').value = '';
-    document.getElementById('p-spec').value = '';
+    document.getElementById('p-remark').value = '';
     document.getElementById('p-purchase-price').value = '';
     document.getElementById('p-quote-price').value = '';
+    document.getElementById('p-quantity').value = '';
     document.getElementById('p-quote-time').value = nowForDateTimeLocal();
     document.getElementById('product-modal').classList.add('open');
   }
@@ -379,14 +386,19 @@
     editingProductId = id;
     document.getElementById('product-modal-title').textContent = `编辑产品 #${id}`;
     document.getElementById('product-modal-sub').textContent =
-      '编辑仅改基础信息；改价请用「报价」录入新报价';
+      '已带入最新报价；保存后直接更新该条报价（不会新增历史），时间记为当前';
     document.getElementById('p-brand').value = p.brand || '';
     document.getElementById('p-model').value = p.model || '';
-    document.getElementById('p-spec').value = p.spec || '';
-    // 编辑不改价格，隐藏可选报价输入避免误解
-    document.getElementById('p-purchase-price').value = '';
-    document.getElementById('p-quote-price').value = '';
-    document.getElementById('p-quote-time').value = '';
+    document.getElementById('p-remark').value = p.remark || '';
+    // 预填最新报价，避免只改数量时价格被清空
+    document.getElementById('p-purchase-price').value =
+      p.purchasePrice != null ? p.purchasePrice : '';
+    document.getElementById('p-quote-price').value =
+      p.quotePrice != null ? p.quotePrice : '';
+    document.getElementById('p-quantity').value =
+      p.quantity != null ? p.quantity : '';
+    // 编辑时刻即本次报价时间
+    document.getElementById('p-quote-time').value = nowForDateTimeLocal();
     document.getElementById('product-modal').classList.add('open');
   }
 
@@ -394,23 +406,22 @@
     const body = {
       brand: document.getElementById('p-brand').value,
       model: document.getElementById('p-model').value,
-      spec: document.getElementById('p-spec').value,
+      remark: document.getElementById('p-remark').value,
     };
-    // 新增时才带上可选报价；编辑不覆盖历史
-    if (!editingProductId) {
-      const purchaseVal = document.getElementById('p-purchase-price').value;
-      const quoteVal = document.getElementById('p-quote-price').value;
-      const timeVal = document.getElementById('p-quote-time').value;
-      if (purchaseVal !== '') body.purchasePrice = Number(purchaseVal);
-      if (quoteVal !== '') body.quotePrice = Number(quoteVal);
-      if (timeVal) body.quoteTime = timeVal + ':00';
-    }
+    const purchaseVal = document.getElementById('p-purchase-price').value;
+    const quoteVal = document.getElementById('p-quote-price').value;
+    const qtyVal = document.getElementById('p-quantity').value;
+    const timeVal = document.getElementById('p-quote-time').value;
+    if (purchaseVal !== '') body.purchasePrice = Number(purchaseVal);
+    if (quoteVal !== '') body.quotePrice = Number(quoteVal);
+    if (qtyVal !== '') body.quantity = Number(qtyVal);
+    if (timeVal) body.quoteTime = timeVal + ':00';
     const r = editingProductId
       ? await api.send(`/api/products/${editingProductId}`, 'PUT', body)
       : await api.send('/api/products', 'POST', body);
     if (r.code !== 0) { toast(r.message); return; }
     closeModal('product-modal');
-    toast(editingProductId ? '产品已保存' : '产品已创建');
+    toast(editingProductId ? '产品与最新报价已更新' : '产品已创建');
     loadBrands();
     loadProducts();
   }
@@ -431,17 +442,17 @@
     currentProductLabel = p ? `${p.brand} / ${p.model}` : `产品 #${productId}`;
     document.getElementById('history-title').textContent = '历史报价';
     document.getElementById('history-sub').textContent = currentProductLabel;
-    document.getElementById('history-body').innerHTML = '<tr><td colspan="5" class="empty">加载中…</td></tr>';
+    document.getElementById('history-body').innerHTML = '<tr><td colspan="6" class="empty">加载中…</td></tr>';
     document.getElementById('history-modal').classList.add('open');
 
     const r = await api.get(`/api/quotes?pageNo=1&pageSize=100&productId=${productId}`);
     if (r.code !== 0) {
-      document.getElementById('history-body').innerHTML = `<tr><td colspan="5" class="empty">${esc(r.message)}</td></tr>`;
+      document.getElementById('history-body').innerHTML = `<tr><td colspan="6" class="empty">${esc(r.message)}</td></tr>`;
       return;
     }
     const rows = r.data.records || [];
     if (!rows.length) {
-      document.getElementById('history-body').innerHTML = '<tr><td colspan="5" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
+      document.getElementById('history-body').innerHTML = '<tr><td colspan="6" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
       return;
     }
     // 已按报价时间倒序（服务端），第一条为最新
@@ -449,6 +460,7 @@
       <tr>
         <td class="num">${Number(q.purchasePrice).toFixed(2)}</td>
         <td class="num">${Number(q.quotePrice).toFixed(2)}</td>
+        <td class="num">${q.quantity != null ? q.quantity : '—'}</td>
         <td class="muted">${fmtTime(q.quoteTime)}${idx === 0 ? '<span class="latest-tag">最新</span>' : ''}</td>
         <td>${esc(q.remark || '')}</td>
         <td>
@@ -463,6 +475,7 @@
     document.getElementById('quote-sub').textContent = currentProductLabel;
     document.getElementById('f-purchase-price').value = '';
     document.getElementById('f-quote-price').value = '';
+    document.getElementById('f-quantity').value = '';
     // 默认报价时间为打开弹窗的当前时刻，格式适配 datetime-local
     document.getElementById('f-quote-time').value = nowForDateTimeLocal();
     document.getElementById('f-remark').value = '';
@@ -477,10 +490,12 @@
 
   async function saveQuote() {
     const timeVal = document.getElementById('f-quote-time').value;
+    const qtyVal = document.getElementById('f-quantity').value;
     const body = {
       productId: currentProductId,
       purchasePrice: Number(document.getElementById('f-purchase-price').value),
       quotePrice: Number(document.getElementById('f-quote-price').value),
+      quantity: qtyVal === '' ? null : Number(qtyVal),
       quoteTime: timeVal ? timeVal + ':00' : null,
       remark: document.getElementById('f-remark').value,
     };

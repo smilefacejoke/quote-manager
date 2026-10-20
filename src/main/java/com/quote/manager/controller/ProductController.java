@@ -66,16 +66,17 @@ public class ProductController {
         // 本地工具类，一次导出全量匹配行；量大再改分页/流式
         List<ProductWithQuoteVO> rows = productService.listWithLatestQuote(brand, model);
 
-        String header = "ID,品牌,型号,规格,采购价,报价,报价时间,建档时间";
+        String header = "ID,品牌,型号,备注,采购价,报价,数量,报价时间,建档时间";
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         String body = rows.stream()
                 .map(p -> String.join(",",
                         String.valueOf(p.getId()),
                         csv(p.getBrand()),
                         csv(p.getModel()),
-                        csv(p.getSpec()),
+                        csv(p.getRemark()),
                         p.getPurchasePrice() != null ? p.getPurchasePrice().toPlainString() : "",
                         p.getQuotePrice() != null ? p.getQuotePrice().toPlainString() : "",
+                        p.getQuantity() != null ? String.valueOf(p.getQuantity()) : "",
                         p.getQuoteTime() != null ? p.getQuoteTime().format(fmt) : "",
                         p.getCreatedAt() != null ? p.getCreatedAt().format(fmt) : ""))
                 .collect(Collectors.joining("\n"));

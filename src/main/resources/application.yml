@@ -10,6 +10,8 @@ spring:
   sql:
     init:
       mode: always
+      # 迁移语句（如引用已删除的 spec 列）在二次启动时会失败，忽略即可
+      continue-on-error: true
       schema-locations: classpath:schema.sql
   h2:
     console:

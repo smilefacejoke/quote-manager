@@ -52,13 +52,14 @@ public class ProductService {
             vo.setId(p.getId());
             vo.setBrand(p.getBrand());
             vo.setModel(p.getModel());
-            vo.setSpec(p.getSpec());
+            vo.setRemark(p.getRemark());
             vo.setCreatedAt(p.getCreatedAt());
             Quote latest = latestByProduct.get(p.getId());
             if (latest != null) {
                 vo.setLatestQuoteId(latest.getId());
                 vo.setPurchasePrice(latest.getPurchasePrice());
                 vo.setQuotePrice(latest.getQuotePrice());
+                vo.setQuantity(latest.getQuantity());
                 vo.setQuoteTime(latest.getQuoteTime());
             }
             return vo;
@@ -115,13 +116,14 @@ public class ProductService {
             vo.setId(p.getId());
             vo.setBrand(p.getBrand());
             vo.setModel(p.getModel());
-            vo.setSpec(p.getSpec());
+            vo.setRemark(p.getRemark());
             vo.setCreatedAt(p.getCreatedAt());
             Quote latest = latestByProduct.get(p.getId());
             if (latest != null) {
                 vo.setLatestQuoteId(latest.getId());
                 vo.setPurchasePrice(latest.getPurchasePrice());
                 vo.setQuotePrice(latest.getQuotePrice());
+                vo.setQuantity(latest.getQuantity());
                 vo.setQuoteTime(latest.getQuoteTime());
             }
             return vo;
@@ -172,7 +174,7 @@ public class ProductService {
         Product product = new Product();
         product.setBrand(req.getBrand().trim());
         product.setModel(req.getModel().trim());
-        product.setSpec(req.getSpec());
+        product.setRemark(req.getRemark());
         // DB 默认值不会回填到实体，这里主动赋值，保证创建响应里能看到建档时间
         product.setCreatedAt(LocalDateTime.now());
         productMapper.insert(product);
@@ -193,14 +195,15 @@ public class ProductService {
         quote.setProductId(productId);
         quote.setPurchasePrice(req.getPurchasePrice());
         quote.setQuotePrice(req.getQuotePrice());
+        quote.setQuantity(req.getQuantity());
         quote.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
         quote.setRemark("建档报价");
         quoteMapper.insert(quote);
     }
 
     /**
-     * 更新产品基础信息。不触碰历史报价；
-     * 即使请求里带了价格也不覆盖（编辑场景以「录入新报价」为准）。
+     * 更新产品基础信息；若请求带了价格/数量，就地修改「最新一条」报价（不新增历史）。
+     * 编辑场景的报价时间取当前时间。
      */
     @Transactional
     public Product update(Long id, ProductSaveRequest req) {
@@ -208,9 +211,61 @@ public class ProductService {
         checkDuplicate(req.getBrand(), req.getModel(), id);
         existing.setBrand(req.getBrand().trim());
         existing.setModel(req.getModel().trim());
-        existing.setSpec(req.getSpec());
+        existing.setRemark(req.getRemark());
         productMapper.updateById(existing);
+
+        updateLatestQuoteIfNeeded(existing.getId(), req);
         return existing;
+    }
+
+    /** 编辑保存：有价格或数量就改最新那条报价；产品还没有报价且填了价格则补建一条 */
+    private void updateLatestQuoteIfNeeded(Long productId, ProductSaveRequest req) {
+        boolean hasPrice = req.getPurchasePrice() != null || req.getQuotePrice() != null;
+        boolean hasQty = req.getQuantity() != null;
+        if (!hasPrice && !hasQty) {
+            return;
+        }
+        if (hasPrice) {
+            PriceRules.validatePair(req.getPurchasePrice(), req.getQuotePrice());
+            PriceRules.validateNotBelowCost(req.getPurchasePrice(), req.getQuotePrice());
+        }
+
+        Quote latest = findLatestQuote(productId);
+        if (latest == null) {
+            if (!hasPrice) {
+                // 只填数量、没有历史报价时无法挂在报价上，忽略数量
+                return;
+            }
+            Quote quote = new Quote();
+            quote.setProductId(productId);
+            quote.setPurchasePrice(req.getPurchasePrice());
+            quote.setQuotePrice(req.getQuotePrice());
+            quote.setQuantity(req.getQuantity());
+            quote.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
+            quote.setRemark("编辑补录");
+            quoteMapper.insert(quote);
+            return;
+        }
+
+        if (hasPrice) {
+            latest.setPurchasePrice(req.getPurchasePrice());
+            latest.setQuotePrice(req.getQuotePrice());
+        }
+        if (hasQty) {
+            latest.setQuantity(req.getQuantity());
+        }
+        // 编辑动作时间即为本次报价时间
+        latest.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
+        quoteMapper.updateById(latest);
+    }
+
+    /** 某产品报价时间最新的一条（时间相同取 id 更大） */
+    private Quote findLatestQuote(Long productId) {
+        LambdaQueryWrapper<Quote> qw = new LambdaQueryWrapper<>();
+        qw.eq(Quote::getProductId, productId);
+        qw.orderByDesc(Quote::getQuoteTime).orderByDesc(Quote::getId);
+        List<Quote> quotes = quoteMapper.selectList(qw);
+        return quotes.isEmpty() ? null : quotes.get(0);
     }
 
     /**

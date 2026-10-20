@@ -49,6 +49,7 @@ public class QuoteService {
         quote.setProductId(req.getProductId());
         quote.setPurchasePrice(req.getPurchasePrice());
         quote.setQuotePrice(req.getQuotePrice());
+        quote.setQuantity(req.getQuantity());
         quote.setQuoteTime(req.getQuoteTime() != null ? req.getQuoteTime() : LocalDateTime.now());
         quote.setRemark(req.getRemark());
         quoteMapper.insert(quote);
@@ -63,6 +64,7 @@ public class QuoteService {
         existing.setProductId(req.getProductId());
         existing.setPurchasePrice(req.getPurchasePrice());
         existing.setQuotePrice(req.getQuotePrice());
+        existing.setQuantity(req.getQuantity());
         if (req.getQuoteTime() != null) {
             existing.setQuoteTime(req.getQuoteTime());
         }
