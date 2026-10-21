@@ -179,7 +179,7 @@ public class ProductService {
     public Product create(ProductSaveRequest req) {
         checkDuplicate(req.getBrand(), req.getModel(), null);
         Product product = new Product();
-        product.setBrand(req.getBrand().trim());
+        product.setBrand(trimToNull(req.getBrand()));
         product.setModel(req.getModel().trim());
         product.setRemark(req.getRemark());
         // DB 默认值不会回填到实体，这里主动赋值，保证创建响应里能看到建档时间
@@ -217,7 +217,7 @@ public class ProductService {
     public Product update(Long id, ProductSaveRequest req) {
         Product existing = getById(id);
         checkDuplicate(req.getBrand(), req.getModel(), id);
-        existing.setBrand(req.getBrand().trim());
+        existing.setBrand(trimToNull(req.getBrand()));
         existing.setModel(req.getModel().trim());
         existing.setRemark(req.getRemark());
         productMapper.updateById(existing);
@@ -292,17 +292,28 @@ public class ProductService {
         productMapper.deleteById(product.getId());
     }
 
-    /** 同品牌 + 同型号视为同一物料，不允许重复建档 */
+    /** 同品牌 + 同型号视为同一物料；品牌可空，空品牌按「无品牌」匹配 */
     private void checkDuplicate(String brand, String model, Long excludeId) {
         LambdaQueryWrapper<Product> qw = new LambdaQueryWrapper<>();
-        qw.eq(Product::getBrand, brand.trim())
-          .eq(Product::getModel, model.trim());
+        String b = trimToNull(brand);
+        if (b == null) {
+            qw.and(w -> w.isNull(Product::getBrand).or().eq(Product::getBrand, ""));
+        } else {
+            qw.eq(Product::getBrand, b);
+        }
+        qw.eq(Product::getModel, model.trim());
         if (excludeId != null) {
             qw.ne(Product::getId, excludeId);
         }
         if (productMapper.selectCount(qw) > 0) {
-            throw new BizException("同品牌同型号已存在: " + brand + " / " + model);
+            throw new BizException("同品牌同型号已存在: " + (b == null ? "(无品牌)" : b) + " / " + model);
         }
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 
     /** 按当日业务汇率写入报价USD与总额USD */

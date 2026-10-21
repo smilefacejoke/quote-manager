@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Data
 public class ProductSaveRequest {
 
-    @NotBlank(message = "品牌不能为空")
+    /** 品牌可为空 */
     private String brand;
 
     @NotBlank(message = "型号不能为空")

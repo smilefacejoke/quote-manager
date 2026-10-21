@@ -28,7 +28,7 @@
     }
     header h1 { margin: 0; font-size: 18px; font-weight: 600; }
     header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-    main { padding: 24px 28px; max-width: 1100px; margin: 0 auto; }
+    main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
     .toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -81,8 +81,11 @@
     tr.clickable { cursor: pointer; }
     tr.clickable:hover td { background: #f7f7f4; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
+    /* 保持 td 为 table-cell，flex 放在内层，避免行下划线错位 */
     td.actions {
       white-space: nowrap;
+    }
+    td.actions .btn-row {
       display: flex;
       flex-wrap: nowrap;
       gap: 6px;
@@ -119,6 +122,9 @@
       overflow: auto;
       border: 1px solid var(--line);
     }
+    /* 历史报价列多，给到更宽一档，避免时间/金额挤到换行 */
+    #history-modal .modal { width: min(980px, 96vw); }
+    .nowrap { white-space: nowrap; }
     .modal h3 { margin: 0 0 4px; font-size: 16px; }
     .modal .sub { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
     .field { margin-bottom: 12px; }
@@ -188,6 +194,9 @@
     <input id="q-model" placeholder="型号筛选" style="width:160px" />
     <button class="ghost" onclick="loadProducts()">查询</button>
     <button class="ghost" onclick="exportCsv()">导出 CSV</button>
+    <button class="ghost" onclick="document.getElementById('import-file').click()">导入 Excel</button>
+    <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none"
+           onchange="importExcel(this)" />
     <button class="primary" onclick="openProductModal()">+ 新增产品</button>
   </div>
   <table>
@@ -225,7 +234,7 @@
   <div class="modal">
     <h3 id="product-modal-title">新增产品</h3>
     <p class="sub" id="product-modal-sub">价格为可选：填写则顺带记录第一条报价；后续可在「报价」里追加</p>
-    <div class="field"><label>品牌 *</label><input id="p-brand" /></div>
+    <div class="field"><label>品牌（可空）</label><input id="p-brand" /></div>
     <div class="field"><label>型号 *</label><input id="p-model" /></div>
     <div class="field"><label>备注（规格等）</label><input id="p-remark" /></div>
     <div class="field"><label>采购价（可选）</label><input id="p-purchase-price" type="number" step="0.01" min="0" /></div>
@@ -342,6 +351,34 @@
     loadProducts();
   }
 
+  /** 批量导入 Excel：一行=型号+报价，时间取导入时刻 */
+  async function importExcel(input) {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/products/import', { method: 'POST', body: form });
+      const r = await res.json();
+      if (r.code !== 0) {
+        toast(r.message || '导入失败');
+        return;
+      }
+      const d = r.data;
+      let msg = `导入完成：新建产品 ${d.productsCreated}，匹配已有 ${d.productsMatched}，新增报价 ${d.quotesCreated}`;
+      if (d.errors && d.errors.length) {
+        msg += `；${d.errors.length} 行有问题`;
+        console.warn('导入行错误', d.errors);
+      }
+      toast(msg);
+      loadBrands();
+      loadProducts();
+    } catch (e) {
+      toast('导入失败：' + e.message);
+    }
+  }
+
   /** 按当前筛选条件导出 CSV（浏览器直接下载） */
   function exportCsv() {
     const brand = document.getElementById('q-brand').value.trim();
@@ -381,11 +418,13 @@
         <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
         <td class="num ${p.quoteUsd != null ? '' : 'no-quote'}">${p.quoteUsd != null ? Number(p.quoteUsd).toFixed(2) : '—'}</td>
         <td class="num ${p.quoteTotalUsd != null ? '' : 'no-quote'}">${p.quoteTotalUsd != null ? Number(p.quoteTotalUsd).toFixed(2) : '—'}</td>
-        <td class="muted">${hasQuote ? fmtTime(p.quoteTime) : '暂无报价'}</td>
+        <td class="muted nowrap">${hasQuote ? fmtTime(p.quoteTime) : '暂无报价'}</td>
         <td class="actions">
-          <button class="ghost" onclick="event.stopPropagation(); openHistory(${p.id})">报价</button>
-          <button class="ghost" onclick="event.stopPropagation(); editProduct(${p.id})">编辑</button>
-          <button class="ghost danger" onclick="event.stopPropagation(); deleteProduct(${p.id})">删除</button>
+          <div class="btn-row">
+            <button class="ghost" onclick="event.stopPropagation(); openHistory(${p.id})">报价</button>
+            <button class="ghost" onclick="event.stopPropagation(); editProduct(${p.id})">编辑</button>
+            <button class="ghost danger" onclick="event.stopPropagation(); deleteProduct(${p.id})">删除</button>
+          </div>
         </td>
         <td class="muted">${esc(p.remark || '')}</td>
       </tr>`;
@@ -490,7 +529,7 @@
         <td class="num">${q.quantity != null ? q.quantity : '—'}</td>
         <td class="num">${q.quoteUsd != null ? Number(q.quoteUsd).toFixed(2) : '—'}</td>
         <td class="num">${q.quoteTotalUsd != null ? Number(q.quoteTotalUsd).toFixed(2) : '—'}</td>
-        <td class="muted">${fmtTime(q.quoteTime)}${idx === 0 ? '<span class="latest-tag">最新</span>' : ''}</td>
+        <td class="muted nowrap">${fmtTime(q.quoteTime)}${idx === 0 ? '<span class="latest-tag">最新</span>' : ''}</td>
         <td>${esc(q.remark || '')}</td>
         <td>
           <button class="ghost danger" onclick="deleteQuote(${q.id})">删除</button>

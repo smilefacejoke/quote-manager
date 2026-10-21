@@ -5,6 +5,7 @@ import com.quote.manager.common.ApiResponse;
 import com.quote.manager.dto.ProductSaveRequest;
 import com.quote.manager.dto.ProductWithQuoteVO;
 import com.quote.manager.entity.Product;
+import com.quote.manager.service.ExcelImportService;
 import com.quote.manager.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,12 +13,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +34,7 @@ import java.util.stream.Collectors;
 public class ProductController {
 
     private final ProductService productService;
+    private final ExcelImportService excelImportService;
 
     /**
      * 产品分页查询。
@@ -94,6 +99,23 @@ public class ProductController {
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .contentLength(content.length)
                 .body(content);
+    }
+
+    /**
+     * 批量导入 Excel：一行一个型号的一次报价。
+     * 列序：Brand | Model | Num | Purchase price | Quote price | Price(USD/pcs) | Total | noted
+     * 报价时间取导入时刻；USD 由系统按当日业务汇率重算。
+     * POST /api/products/import （multipart 字段名 file）
+     */
+    @PostMapping("/import")
+    public ApiResponse<Map<String, Object>> importExcel(@RequestParam("file") MultipartFile file) {
+        ExcelImportService.ImportResult r = excelImportService.importWorkbook(file);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("productsCreated", r.productsCreated);
+        body.put("productsMatched", r.productsMatched);
+        body.put("quotesCreated", r.quotesCreated);
+        body.put("errors", r.errors);
+        return ApiResponse.ok(body);
     }
 
     /** 按 id 查单个产品（不含报价信息） */

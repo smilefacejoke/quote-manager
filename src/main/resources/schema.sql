@@ -2,7 +2,7 @@
 -- remark 承载原「规格」内容（如 12+512G），也可写其它产品备注
 CREATE TABLE IF NOT EXISTS product (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-    brand       VARCHAR(64)  NOT NULL COMMENT '品牌',
+    brand       VARCHAR(64)  COMMENT '品牌，可为空',
     model       VARCHAR(128) NOT NULL COMMENT '型号',
     remark      VARCHAR(255) COMMENT '备注/原规格内容',
     created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -37,6 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_quote_time ON quote (quote_time);
 
 -- ===== 老库迁移（幂等） =====
 ALTER TABLE product ADD COLUMN IF NOT EXISTS remark VARCHAR(255);
+ALTER TABLE product ALTER COLUMN brand VARCHAR(64) NULL;
 UPDATE product SET remark = COALESCE(remark, spec) WHERE spec IS NOT NULL;
 ALTER TABLE product DROP COLUMN IF EXISTS spec;
 
