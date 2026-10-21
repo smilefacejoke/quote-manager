@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -298,6 +299,36 @@ public class ProductService {
         qw.eq(Quote::getProductId, product.getId());
         quoteMapper.delete(qw);
         productMapper.deleteById(product.getId());
+    }
+
+    /**
+     * 批量删除产品：每个产品连同其全部历史报价一并删除。
+     * 整批放在同一事务里：任一失败则整批不生效，避免删一半。
+     *
+     * @return 实际删除的产品数（忽略不存在的 id）
+     */
+    @Transactional
+    public int deleteBatch(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BizException("请先选择要删除的产品");
+        }
+        List<Long> distinctIds = ids.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (distinctIds.isEmpty()) {
+            throw new BizException("请先选择要删除的产品");
+        }
+        List<Product> products = productMapper.selectBatchIds(distinctIds);
+        if (products.isEmpty()) {
+            throw new BizException("所选产品不存在");
+        }
+        List<Long> existingIds = products.stream().map(Product::getId).toList();
+        LambdaQueryWrapper<Quote> qw = new LambdaQueryWrapper<>();
+        qw.in(Quote::getProductId, existingIds);
+        quoteMapper.delete(qw);
+        productMapper.deleteBatchIds(existingIds);
+        return existingIds.size();
     }
 
     /** 同品牌 + 同型号视为同一物料；品牌可空，空品牌按「无品牌」匹配 */

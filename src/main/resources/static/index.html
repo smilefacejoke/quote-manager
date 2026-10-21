@@ -85,6 +85,10 @@
     td.actions {
       white-space: nowrap;
     }
+    td.check, th.check { width: 36px; text-align: center; padding-left: 12px; padding-right: 4px; }
+    td.check input, th.check input { margin: 0; cursor: pointer; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
     td.actions .btn-row {
       display: flex;
       flex-wrap: nowrap;
@@ -197,11 +201,13 @@
     <button class="ghost" onclick="document.getElementById('import-file').click()">导入 Excel</button>
     <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none"
            onchange="importExcel(this)" />
+    <button class="ghost danger" id="batch-delete-btn" onclick="deleteSelectedProducts()" disabled>批量删除</button>
     <button class="primary" onclick="openProductModal()">+ 新增产品</button>
   </div>
   <table>
     <thead>
       <tr>
+        <th class="check"><input type="checkbox" id="check-all" title="全选本页" onchange="toggleCheckAll(this)" /></th>
         <th>品牌</th>
         <th>型号</th>
         <th class="num">需求数量</th>
@@ -315,6 +321,8 @@
   let currentProductLabel = '';
   let editingQuoteId = null;
   const productCache = {};
+  /** 勾选中的产品 id（跨分页保留，翻页/查询后清空） */
+  const selectedProductIds = new Set();
 
   function toast(msg) {
     const el = document.getElementById('toast');
@@ -399,10 +407,14 @@
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     const page = r.data;
     const rows = page.records || [];
+    // 换页/查询后清空勾选，避免删到看不见的行
+    selectedProductIds.clear();
+    document.getElementById('check-all').checked = false;
+    updateBatchDeleteBtn();
     document.getElementById('product-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
     const body = document.getElementById('product-body');
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="10" class="empty">暂无数据</td></tr>';
+      body.innerHTML = '<tr><td colspan="11" class="empty">暂无数据</td></tr>';
       return;
     }
     rows.forEach(p => { productCache[p.id] = p; });
@@ -411,6 +423,9 @@
       const hasQty = p.quantity != null;
       return `
       <tr class="clickable" onclick="openHistory(${p.id})">
+        <td class="check" onclick="event.stopPropagation()">
+          <input type="checkbox" class="row-check" data-id="${p.id}" onchange="onRowCheckChange()" />
+        </td>
         <td>${esc(p.brand)}</td>
         <td><span class="model-link">${esc(p.model)}</span></td>
         <td class="num ${hasQty ? '' : 'no-quote'}">${hasQty ? p.quantity : '—'}</td>
@@ -498,7 +513,60 @@
     if (!confirm(`确认删除「${label}」？\n它的全部历史报价会一并删除，且不可恢复。`)) return;
     const r = await api.send(`/api/products/${id}`, 'DELETE');
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    selectedProductIds.delete(id);
+    updateBatchDeleteBtn();
     toast('已删除');
+    loadProducts();
+  }
+
+  /** 表头全选/取消全选本页 */
+  function toggleCheckAll(el) {
+    document.querySelectorAll('.row-check').forEach(c => {
+      c.checked = el.checked;
+      const id = Number(c.dataset.id);
+      if (el.checked) selectedProductIds.add(id);
+      else selectedProductIds.delete(id);
+    });
+    updateBatchDeleteBtn();
+  }
+
+  /** 单行勾选变化：同步 selectedProductIds 与表头状态 */
+  function onRowCheckChange() {
+    selectedProductIds.clear();
+    document.querySelectorAll('.row-check:checked').forEach(c => {
+      selectedProductIds.add(Number(c.dataset.id));
+    });
+    const all = document.querySelectorAll('.row-check');
+    const checked = document.querySelectorAll('.row-check:checked');
+    const checkAll = document.getElementById('check-all');
+    checkAll.checked = all.length > 0 && all.length === checked.length;
+    checkAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    updateBatchDeleteBtn();
+  }
+
+  function updateBatchDeleteBtn() {
+    const btn = document.getElementById('batch-delete-btn');
+    const n = selectedProductIds.size;
+    btn.textContent = n > 0 ? `批量删除 (${n})` : '批量删除';
+    btn.disabled = n === 0;
+  }
+
+  /** 批量删除勾选的产品：各自历史报价一并删除 */
+  async function deleteSelectedProducts() {
+    const ids = [...selectedProductIds];
+    if (!ids.length) { toast('请先勾选要删除的产品'); return; }
+    const preview = ids.slice(0, 5).map(id => {
+      const p = productCache[id];
+      return p ? `· ${p.brand || '(无品牌)'} / ${p.model}` : `· #${id}`;
+    }).join('\n');
+    const more = ids.length > 5 ? `\n… 等共 ${ids.length} 个产品` : '';
+    if (!confirm(`确认删除以下 ${ids.length} 个产品？\n${preview}${more}\n它们的全部历史报价会一并删除，且不可恢复。`)) return;
+    const r = await api.send('/api/products/batch-delete', 'POST', ids);
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    const deleted = r.data && r.data.deleted != null ? r.data.deleted : ids.length;
+    selectedProductIds.clear();
+    toast(`已删除 ${deleted} 个产品`);
+    loadBrands();
     loadProducts();
   }
 

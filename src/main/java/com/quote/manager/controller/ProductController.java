@@ -151,6 +151,19 @@ public class ProductController {
         return ApiResponse.ok(null);
     }
 
+    /**
+     * 批量删除产品，会级联删除各自的全部历史报价。
+     * POST /api/products/batch-delete ，body 为 id 数组，如 [1,2,3]
+     * 前端务必先弹窗二次确认。
+     */
+    @PostMapping("/batch-delete")
+    public ApiResponse<Map<String, Object>> deleteBatch(@RequestBody List<Long> ids) {
+        int deleted = productService.deleteBatch(ids);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("deleted", deleted);
+        return ApiResponse.ok(body);
+    }
+
     /** CSV 字段转义：有逗号/引号/换行时加引号包裹 */
     private static String csv(String raw) {
         if (raw == null) {
