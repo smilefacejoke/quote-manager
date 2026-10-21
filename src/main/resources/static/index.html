@@ -128,6 +128,8 @@
     }
     /* 历史报价列多，给到更宽一档，避免时间/金额挤到换行 */
     #history-modal .modal { width: min(980px, 96vw); }
+    #export-modal .modal { width: min(860px, 96vw); }
+    .export-total-row td { font-weight: 600; background: #f7f7f4; border-top: 1px solid var(--line); }
     .nowrap { white-space: nowrap; }
     .modal h3 { margin: 0 0 4px; font-size: 16px; }
     .modal .sub { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
@@ -197,7 +199,7 @@
     </select>
     <input id="q-model" placeholder="型号筛选" style="width:160px" />
     <button class="ghost" onclick="loadProducts()">查询</button>
-    <button class="ghost" onclick="exportCsv()">导出 CSV</button>
+    <button class="ghost" onclick="openExportPreview()">批量导出 Excel</button>
     <button class="ghost" onclick="document.getElementById('import-file').click()">导入 Excel</button>
     <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none"
            onchange="importExcel(this)" />
@@ -298,6 +300,31 @@
   </div>
 </div>
 
+<!-- 批量导出 Excel 预览弹窗 -->
+<div class="modal-backdrop" id="export-modal">
+  <div class="modal">
+    <h3>批量导出 Excel</h3>
+    <p class="sub">将导出以下勾选产品的最新报价，确认后开始下载</p>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>品牌</th>
+          <th>型号</th>
+          <th class="num">采购价</th>
+          <th class="num">报价</th>
+          <th class="num">报价(USD)</th>
+          <th class="num">报价总额(USD)</th>
+        </tr>
+      </thead>
+      <tbody id="export-body"></tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('export-modal')">取消</button>
+      <button class="primary" onclick="confirmExportExcel()">确认导出</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -387,14 +414,68 @@
     }
   }
 
-  /** 按当前筛选条件导出 CSV（浏览器直接下载） */
-  function exportCsv() {
-    const brand = document.getElementById('q-brand').value.trim();
-    const model = document.getElementById('q-model').value.trim();
-    let url = '/api/products/export?';
-    if (brand) url += `brand=${encodeURIComponent(brand)}&`;
-    if (model) url += `model=${encodeURIComponent(model)}&`;
-    window.location.href = url;
+  /** 打开批量导出预览：展示勾选产品的最新报价与总金额 */
+  function openExportPreview() {
+    const ids = [...selectedProductIds];
+    if (!ids.length) { toast('请先勾选要导出的产品'); return; }
+    // 与导出顺序一致：id 倒序
+    ids.sort((a, b) => b - a);
+    const body = document.getElementById('export-body');
+    let total = 0;
+    const rowsHtml = ids.map(id => {
+      const p = productCache[id];
+      if (!p) return '';
+      const hasQuote = p.purchasePrice != null;
+      const t = p.quoteTotalUsd != null ? Number(p.quoteTotalUsd) : null;
+      if (t != null) total += t;
+      return `
+        <tr>
+          <td>${esc(p.brand || '')}</td>
+          <td>${esc(p.model)}</td>
+          <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.purchasePrice).toFixed(2) : '—'}</td>
+          <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
+          <td class="num ${p.quoteUsd != null ? '' : 'no-quote'}">${p.quoteUsd != null ? Number(p.quoteUsd).toFixed(2) : '—'}</td>
+          <td class="num ${t != null ? '' : 'no-quote'}">${t != null ? t.toFixed(2) : '—'}</td>
+        </tr>`;
+    }).join('');
+    body.innerHTML = rowsHtml + `
+      <tr class="export-total-row">
+        <td colspan="5">总金额（USD）</td>
+        <td class="num">${total.toFixed(2)}</td>
+      </tr>`;
+    document.getElementById('export-modal').classList.add('open');
+  }
+
+  /** 确认后请求后端生成 xlsx 并触发浏览器下载 */
+  async function confirmExportExcel() {
+    const ids = [...selectedProductIds];
+    if (!ids.length) { toast('请先勾选要导出的产品'); return; }
+    const resp = await fetch('/api/products/export-excel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids),
+    });
+    const ctype = resp.headers.get('content-type') || '';
+    if (!resp.ok || ctype.includes('application/json')) {
+      let msg = '导出失败';
+      try {
+        const j = await resp.json();
+        msg = j.message || msg;
+      } catch (_) { /* 非 JSON 错误体 */ }
+      toast(msg);
+      return;
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `产品报价_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    closeModal('export-modal');
+    toast('已导出 Excel');
   }
 
   async function loadProducts() {

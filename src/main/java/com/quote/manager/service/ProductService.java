@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -110,7 +111,27 @@ public class ProductService {
     /** 全量导出用：按筛选条件取全部产品 + 最新报价，不分页 */
     public List<ProductWithQuoteVO> listWithLatestQuote(String brand, String model) {
         Page<Product> productPage = page(1, Integer.MAX_VALUE, brand, model);
-        List<Product> products = productPage.getRecords();
+        return attachLatestQuotes(productPage.getRecords());
+    }
+
+    /** 批量导出用：按 id 取产品 + 最新报价；顺序与列表一致（id 倒序） */
+    public List<ProductWithQuoteVO> listByIdsWithLatestQuote(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> distinctIds = ids.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (distinctIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Product> products = productMapper.selectBatchIds(distinctIds);
+        products.sort(Comparator.comparing(Product::getId).reversed());
+        return attachLatestQuotes(products);
+    }
+
+    private List<ProductWithQuoteVO> attachLatestQuotes(List<Product> products) {
         if (products.isEmpty()) {
             return Collections.emptyList();
         }

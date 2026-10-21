@@ -2,9 +2,11 @@ package com.quote.manager.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.quote.manager.common.ApiResponse;
+import com.quote.manager.common.BizException;
 import com.quote.manager.dto.ProductSaveRequest;
 import com.quote.manager.dto.ProductWithQuoteVO;
 import com.quote.manager.entity.Product;
+import com.quote.manager.service.ExcelExportService;
 import com.quote.manager.service.ExcelImportService;
 import com.quote.manager.service.ProductService;
 import jakarta.validation.Valid;
@@ -22,7 +24,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 产品档案接口。
@@ -35,6 +36,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final ExcelImportService excelImportService;
+    private final ExcelExportService excelExportService;
 
     /**
      * 产品分页查询。
@@ -60,43 +62,24 @@ public class ProductController {
     }
 
     /**
-     * 导出产品（含最新报价）为 CSV，筛选条件与列表一致。
-     * GET /api/products/export?brand=&model=
-     * Excel 直接打开：带 UTF-8 BOM，中文不乱码。
+     * 批量导出选中产品（含最新报价）为 Excel。
+     * POST /api/products/export-excel ，body 为 id 数组，如 [1,2,3]
+     * 列名英文：Brand | Model | Purchase Price | Quote Price | Quote USD | Total USD
+     * 最后一行为 Total USD 合计。
      */
-    @GetMapping("/export")
-    public ResponseEntity<byte[]> exportCsv(
-            @RequestParam(required = false) String brand,
-            @RequestParam(required = false) String model) {
-        // 本地工具类，一次导出全量匹配行；量大再改分页/流式
-        List<ProductWithQuoteVO> rows = productService.listWithLatestQuote(brand, model);
-
-        String header = "ID,品牌,型号,备注,采购价,报价,数量,报价(USD),报价总额(USD),报价时间,建档时间";
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        String body = rows.stream()
-                .map(p -> String.join(",",
-                        String.valueOf(p.getId()),
-                        csv(p.getBrand()),
-                        csv(p.getModel()),
-                        csv(p.getRemark()),
-                        p.getPurchasePrice() != null ? p.getPurchasePrice().toPlainString() : "",
-                        p.getQuotePrice() != null ? p.getQuotePrice().toPlainString() : "",
-                        p.getQuantity() != null ? String.valueOf(p.getQuantity()) : "",
-                        p.getQuoteUsd() != null ? p.getQuoteUsd().toPlainString() : "",
-                        p.getQuoteTotalUsd() != null ? p.getQuoteTotalUsd().toPlainString() : "",
-                        p.getQuoteTime() != null ? p.getQuoteTime().format(fmt) : "",
-                        p.getCreatedAt() != null ? p.getCreatedAt().format(fmt) : ""))
-                .collect(Collectors.joining("\n"));
-
-        // UTF-8 BOM：Excel 打开中文不乱码
-        byte[] content = ("\uFEFF" + header + "\n" + body + "\n").getBytes(StandardCharsets.UTF_8);
-
+    @PostMapping("/export-excel")
+    public ResponseEntity<byte[]> exportExcel(@RequestBody List<Long> ids) {
+        List<ProductWithQuoteVO> rows = productService.listByIdsWithLatestQuote(ids);
+        if (rows.isEmpty()) {
+            throw new BizException("请先选择要导出的产品");
+        }
+        byte[] content = excelExportService.export(rows);
         String filename = URLEncoder.encode(
-                "产品报价_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv",
+                "产品报价_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx",
                 StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
-                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .contentType(new MediaType("application", "vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .contentLength(content.length)
                 .body(content);
     }
@@ -162,16 +145,5 @@ public class ProductController {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("deleted", deleted);
         return ApiResponse.ok(body);
-    }
-
-    /** CSV 字段转义：有逗号/引号/换行时加引号包裹 */
-    private static String csv(String raw) {
-        if (raw == null) {
-            return "";
-        }
-        if (raw.contains(",") || raw.contains("\"") || raw.contains("\n")) {
-            return "\"" + raw.replace("\"", "\"\"") + "\"";
-        }
-        return raw;
     }
 }
