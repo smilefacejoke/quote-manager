@@ -104,7 +104,8 @@ public class ProductController {
     /**
      * 批量导入 Excel：一行一个型号的一次报价。
      * 列序：Brand | Model | Num | Purchase price | Quote price | Price(USD/pcs) | Total | noted
-     * 报价时间取导入时刻；USD 由系统按当日业务汇率重算。
+     * USD 列有值则直接采用；为空才按当日业务汇率换算。报价总额 = USD × 数量。
+     * 报价时间取导入时刻。
      * POST /api/products/import （multipart 字段名 file）
      */
     @PostMapping("/import")

@@ -318,7 +318,7 @@
 
   function toast(msg) {
     const el = document.getElementById('toast');
-    el.textContent = msg;
+    el.textContent = (msg == null || msg === '') ? '操作失败，请重试' : String(msg);
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 2200);
   }
@@ -328,7 +328,7 @@
     const select = document.getElementById('q-brand');
     const current = select.value;
     const r = await api.get('/api/products/brands');
-    if (r.code !== 0) { toast(r.message); return; }
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     const brands = r.data || [];
     select.innerHTML = '<option value="">全部品牌</option>'
       + brands.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
@@ -365,8 +365,8 @@
         toast(r.message || '导入失败');
         return;
       }
-      const d = r.data;
-      let msg = `导入完成：新建产品 ${d.productsCreated}，匹配已有 ${d.productsMatched}，新增报价 ${d.quotesCreated}`;
+      const d = r.data || {};
+      let msg = `导入完成：新建产品 ${d.productsCreated ?? 0}，匹配已有 ${d.productsMatched ?? 0}，新增报价 ${d.quotesCreated ?? 0}`;
       if (d.errors && d.errors.length) {
         msg += `；${d.errors.length} 行有问题`;
         console.warn('导入行错误', d.errors);
@@ -375,7 +375,7 @@
       loadBrands();
       loadProducts();
     } catch (e) {
-      toast('导入失败：' + e.message);
+      toast('导入失败：' + (e && e.message ? e.message : '未知错误'));
     }
   }
 
@@ -396,7 +396,7 @@
     if (brand) url += `&brand=${encodeURIComponent(brand)}`;
     if (model) url += `&model=${encodeURIComponent(model)}`;
     const r = await api.get(url);
-    if (r.code !== 0) { toast(r.message); return; }
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     const page = r.data;
     const rows = page.records || [];
     document.getElementById('product-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
@@ -485,7 +485,7 @@
     const r = editingProductId
       ? await api.send(`/api/products/${editingProductId}`, 'PUT', body)
       : await api.send('/api/products', 'POST', body);
-    if (r.code !== 0) { toast(r.message); return; }
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     closeModal('product-modal');
     toast(editingProductId ? '产品与最新报价已更新' : '产品已创建');
     loadBrands();
@@ -497,7 +497,7 @@
     const label = p ? `${p.brand} ${p.model}` : `#${id}`;
     if (!confirm(`确认删除「${label}」？\n它的全部历史报价会一并删除，且不可恢复。`)) return;
     const r = await api.send(`/api/products/${id}`, 'DELETE');
-    if (r.code !== 0) { toast(r.message); return; }
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     toast('已删除');
     loadProducts();
   }
@@ -568,7 +568,7 @@
       remark: document.getElementById('f-remark').value,
     };
     const r = await api.send('/api/quotes', 'POST', body);
-    if (r.code !== 0) { toast(r.message); return; }
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     closeModal('quote-modal');
     toast('报价已保存');
     openHistory(currentProductId);
@@ -578,7 +578,7 @@
   async function deleteQuote(id) {
     if (!confirm(`确认删除报价记录 #${id}？`)) return;
     const r = await api.send(`/api/quotes/${id}`, 'DELETE');
-    if (r.code !== 0) { toast(r.message); return; }
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     toast('已删除');
     openHistory(currentProductId);
     loadProducts();

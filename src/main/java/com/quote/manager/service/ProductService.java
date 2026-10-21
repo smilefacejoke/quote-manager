@@ -151,16 +151,24 @@ public class ProductService {
     }
 
     /** 品牌下拉用：去重后的全部品牌，按字典序 */
+    /**
+     * 品牌下拉选项。品牌允许为空，这里跳过空品牌。
+     * 显式判空，避免 stream 方法引用对 null 品牌抛 NPE。
+     */
     public List<String> listBrands() {
         List<Product> products = productMapper.selectList(new LambdaQueryWrapper<Product>()
                 .select(Product::getBrand));
-        return products.stream()
-                .map(Product::getBrand)
-                .filter(StringUtils::hasText)
-                .map(String::trim)
-                .distinct()
-                .sorted()
-                .toList();
+        List<String> brands = new java.util.ArrayList<>();
+        for (Product p : products) {
+            String b = (p == null) ? null : p.getBrand();
+            if (b != null) {
+                String t = b.trim();
+                if (!t.isEmpty()) {
+                    brands.add(t);
+                }
+            }
+        }
+        return brands.stream().distinct().sorted().toList();
     }
 
     public Product getById(Long id) {

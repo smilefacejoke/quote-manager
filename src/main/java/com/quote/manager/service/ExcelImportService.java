@@ -30,7 +30,8 @@ import java.util.Map;
 /**
  * Excel 批量导入：一行 = 一个型号的一次报价。
  * 列顺序：Brand | Model | Num | Purchase price | Quote price | Price(USD/pcs) | Total | noted
- * USD 列可不填，由系统按当日业务汇率重算；报价时间取导入时刻。
+ * USD 列有值则直接采用表格数据（含公式缓存值）；为空才按当日业务汇率换算。
+ * 报价总额 = 报价USD × 数量；报价时间取导入时刻。
  */
 @Service
 @RequiredArgsConstructor
@@ -53,7 +54,8 @@ public class ExcelImportService {
         if (file == null || file.isEmpty()) {
             throw new BizException("请先选择 Excel 文件");
         }
-        BigDecimal rate = exchangeRateService.getTodayUsedRate();
+        // 汇率延迟获取：表格 USD 列都有值时无需联网取汇率
+        BigDecimal[] rateHolder = new BigDecimal[1];
         LocalDateTime now = LocalDateTime.now();
         // 品牌+型号 → 产品，同一次导入内复用
         Map<String, Product> cache = new HashMap<>();
@@ -84,19 +86,21 @@ public class ExcelImportService {
                 try {
                     String noted = text(cell(row, 7));
                     Product product = findOrCreate(brand, model, noted, result, cache);
-                    Quote quote = buildQuote(product.getId(), row, rate, now, result, r);
+                    Quote quote = buildQuote(product.getId(), row, rateHolder, now, result, r);
                     if (quote != null) {
                         quoteMapper.insert(quote);
                         result.quotesCreated++;
                     }
                 } catch (Exception e) {
-                    result.errors.add("第 " + (r + 1) + " 行：" + e.getMessage());
+                    String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    result.errors.add("第 " + (r + 1) + " 行：" + msg);
                 }
             }
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException("Excel 解析失败：" + e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            throw new BizException("Excel 解析失败：" + msg);
         }
 
         if (result.quotesCreated == 0 && result.productsCreated == 0) {
@@ -143,15 +147,16 @@ public class ExcelImportService {
         return product;
     }
 
-    private Quote buildQuote(Long productId, Row row, BigDecimal rate, LocalDateTime now,
+    private Quote buildQuote(Long productId, Row row, BigDecimal[] rateHolder, LocalDateTime now,
                              ImportResult result, int rowIndex) {
         // 列：0 Brand 1 Model 2 Num 3 Purchase 4 Quote 5 USD 6 Total 7 noted
         Integer qty = intVal(cell(row, 2));
         BigDecimal purchase = decimal(cell(row, 3));
         BigDecimal quotePrice = decimal(cell(row, 4));
+        BigDecimal sheetUsd = decimal(cell(row, 5));
         String noted = text(cell(row, 7));
 
-        if (purchase == null && quotePrice == null && qty == null) {
+        if (purchase == null && quotePrice == null && qty == null && sheetUsd == null) {
             result.errors.add("第 " + (rowIndex + 1) + " 行：数量/价格均为空，已跳过");
             return null;
         }
@@ -173,7 +178,15 @@ public class ExcelImportService {
         quote.setQuantity(qty);
         quote.setQuoteTime(now);
         quote.setRemark(noted);
-        quote.setQuoteUsd(ExchangeRateService.cnyToUsd(quotePrice, rate));
+        // USD：表格里有值（含公式结果）就直接用，没有才按当日业务汇率换算
+        if (sheetUsd != null) {
+            quote.setQuoteUsd(sheetUsd);
+        } else {
+            if (rateHolder[0] == null) {
+                rateHolder[0] = exchangeRateService.getTodayUsedRate();
+            }
+            quote.setQuoteUsd(ExchangeRateService.cnyToUsd(quotePrice, rateHolder[0]));
+        }
         if (quote.getQuoteUsd() != null) {
             quote.setQuoteTotalUsd(quote.getQuoteUsd()
                     .multiply(BigDecimal.valueOf(qty))
@@ -196,10 +209,14 @@ public class ExcelImportService {
         if (cell == null) {
             return null;
         }
-        if (cell.getCellType() == CellType.STRING) {
+        CellType type = cell.getCellType();
+        if (type == CellType.FORMULA) {
+            type = cell.getCachedFormulaResultType();
+        }
+        if (type == CellType.STRING) {
             return cell.getStringCellValue();
         }
-        if (cell.getCellType() == CellType.NUMERIC) {
+        if (type == CellType.NUMERIC) {
             if (DateUtil.isCellDateFormatted(cell)) {
                 return cell.getLocalDateTimeCellValue().toString();
             }
@@ -216,7 +233,11 @@ public class ExcelImportService {
         if (cell == null) {
             return null;
         }
-        if (cell.getCellType() == CellType.NUMERIC) {
+        CellType type = cell.getCellType();
+        if (type == CellType.FORMULA) {
+            type = cell.getCachedFormulaResultType();
+        }
+        if (type == CellType.NUMERIC) {
             return (int) Math.round(cell.getNumericCellValue());
         }
         String t = text(cell);
@@ -234,7 +255,11 @@ public class ExcelImportService {
         if (cell == null) {
             return null;
         }
-        if (cell.getCellType() == CellType.NUMERIC) {
+        CellType type = cell.getCellType();
+        if (type == CellType.FORMULA) {
+            type = cell.getCachedFormulaResultType();
+        }
+        if (type == CellType.NUMERIC) {
             return BigDecimal.valueOf(cell.getNumericCellValue());
         }
         String t = text(cell);
