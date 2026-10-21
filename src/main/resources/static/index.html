@@ -177,6 +177,35 @@
     }
     .toast.show { opacity: 1; }
     .empty { padding: 32px; text-align: center; color: var(--muted); }
+
+    .nav-tabs { display: flex; gap: 8px; margin-top: 10px; }
+    .nav-tab {
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .nav-tab.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+    .order-detail-meta {
+      display: flex; flex-wrap: wrap; gap: 12px 24px;
+      padding: 12px 14px; margin-bottom: 12px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    }
+    .order-detail-meta .label { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+    .order-detail-meta .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .item-form-grid {
+      display: grid; grid-template-columns: 1.4fr 0.7fr 1fr 1fr; gap: 10px; margin-bottom: 10px;
+    }
+    .calc-preview {
+      display: flex; flex-wrap: wrap; gap: 10px 18px;
+      padding: 10px 12px; margin: 4px 0 12px;
+      background: #f7f7f4; border: 1px solid var(--line); border-radius: 8px;
+      font-size: 12px; color: var(--muted);
+    }
+    .calc-preview b { color: var(--ink); font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
@@ -184,6 +213,10 @@
   <div>
     <h1>型号报价管理系统</h1>
     <p>列表显示最新报价 · 点击型号查看历史报价</p>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" id="nav-products" onclick="showView('products')">产品报价</button>
+      <button class="nav-tab" id="nav-orders" onclick="showView('orders')">采购订单</button>
+    </nav>
   </div>
   <div style="text-align:right">
     <div class="muted" style="font-size:11px">今日美元汇率</div>
@@ -193,6 +226,8 @@
 </header>
 
 <main>
+  <!-- 产品报价 -->
+  <div id="view-products">
   <div class="toolbar">
     <select id="q-brand" style="width:150px">
       <option value="">全部品牌</option>
@@ -234,6 +269,71 @@
     <button class="ghost" onclick="pageProducts(-1)">上一页</button>
     <span class="muted" id="product-page-info">第 1 页</span>
     <button class="ghost" onclick="pageProducts(1)">下一页</button>
+  </div>
+  </div><!-- /view-products -->
+
+  <!-- 采购订单列表 -->
+  <div id="view-orders" style="display:none">
+    <div class="toolbar">
+      <input id="q-order-no" placeholder="订单号" style="width:150px" />
+      <input id="q-customer" placeholder="客户名称" style="width:150px" />
+      <button class="ghost" onclick="loadOrders()">查询</button>
+      <button class="primary" onclick="openOrderModal()">+ 新增订单</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>订单号</th>
+          <th>客户名称</th>
+          <th>下订时间</th>
+          <th class="num">实际收款额</th>
+          <th class="num">采购额</th>
+          <th class="num">实际总利润</th>
+          <th style="width:150px">操作</th>
+        </tr>
+      </thead>
+      <tbody id="order-body"></tbody>
+    </table>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="ghost" onclick="pageOrders(-1)">上一页</button>
+      <span class="muted" id="order-page-info">第 1 页</span>
+      <button class="ghost" onclick="pageOrders(1)">下一页</button>
+    </div>
+  </div>
+
+  <!-- 订单详情（二级页） -->
+  <div id="view-order-detail" style="display:none">
+    <div class="toolbar">
+      <button class="ghost" onclick="showView('orders')">← 返回订单列表</button>
+      <span class="muted" id="order-detail-title"></span>
+      <span style="flex:1"></span>
+      <button class="ghost" onclick="openOrderModal(currentOrderId)">编辑订单</button>
+      <button class="ghost danger" onclick="deleteOrder(currentOrderId)">删除订单</button>
+      <button class="primary" onclick="openItemForm()">+ 添加型号</button>
+    </div>
+    <div class="order-detail-meta" id="order-detail-meta"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>型号</th>
+          <th class="num">数量</th>
+          <th class="num">实际收款</th>
+          <th class="num">采购额</th>
+          <th class="num">销售额</th>
+          <th class="num">利润</th>
+          <th class="num">实际总利润</th>
+          <th class="num">销售价（美元）</th>
+          <th class="num">汇率</th>
+          <th class="num">销售价（人民币）</th>
+          <th style="width:110px">操作</th>
+        </tr>
+      </thead>
+      <tbody id="order-item-body"></tbody>
+    </table>
+    <div class="toolbar" style="margin-top:12px">
+      <span class="muted">合计</span>
+      <span class="muted" id="order-detail-totals"></span>
+    </div>
   </div>
 </main>
 
@@ -321,6 +421,46 @@
     <div class="modal-actions">
       <button class="ghost" onclick="closeModal('export-modal')">取消</button>
       <button class="primary" onclick="confirmExportExcel()">确认导出</button>
+    </div>
+  </div>
+</div>
+
+<!-- 采购订单 新增/编辑弹窗 -->
+<div class="modal-backdrop" id="order-modal">
+  <div class="modal">
+    <h3 id="order-modal-title">新增采购订单</h3>
+    <p class="sub">订单号手填；明细里的销售价/汇率按当前报价与当日汇率自动计算并快照</p>
+    <div class="field"><label>订单号 *</label><input id="o-order-no" /></div>
+    <div class="field"><label>客户名称 *</label><input id="o-customer" /></div>
+    <div class="field"><label>下订时间</label><input id="o-order-time" type="datetime-local" /></div>
+    <div class="field">
+      <label>型号明细 *</label>
+      <div id="order-item-editor"></div>
+      <button class="ghost" type="button" onclick="addOrderItemRow()" style="margin-top:6px">+ 添加一行</button>
+    </div>
+    <div class="calc-preview" id="order-form-preview"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('order-modal')">取消</button>
+      <button class="primary" onclick="saveOrder()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 订单明细 录入/编辑弹窗 -->
+<div class="modal-backdrop" id="item-modal">
+  <div class="modal">
+    <h3 id="item-modal-title">添加型号</h3>
+    <p class="sub">销售价（美元）取该型号最新报价的报价 USD；汇率取当日业务汇率</p>
+    <div class="field"><label>型号 *</label><select id="it-product"></select></div>
+    <div class="item-form-grid">
+      <div class="field"><label>数量</label><input id="it-quantity" type="number" min="1" step="1" value="1" /></div>
+      <div class="field"><label>实际收款</label><input id="it-received" type="number" step="0.01" /></div>
+      <div class="field"><label>采购额</label><input id="it-purchase" type="number" step="0.01" /></div>
+    </div>
+    <div class="calc-preview" id="item-calc-preview"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('item-modal')">取消</button>
+      <button class="primary" onclick="saveOrderItem()">保存</button>
     </div>
   </div>
 </div>
@@ -762,6 +902,441 @@
 
   loadTodayRate();
   loadBrands().then(loadProducts);
+  loadProductOptions();
+
+  /* ===================== 采购订单 ===================== */
+  let currentView = 'products';
+  let orderPage = 1;
+  let orderPageSize = 20;
+  let currentOrderId = null;
+  let editingOrderId = null;
+  let editingItemId = null;
+  /** 下拉产品缓存：id -> {id, brand, model, quoteUsd, purchasePrice, quotePrice} */
+  let productOptions = [];
+  /** 新增/编辑订单弹窗里的明细草稿 */
+  let orderFormItems = [];
+
+  function showView(view) {
+    currentView = view;
+    document.getElementById('view-products').style.display = view === 'products' ? '' : 'none';
+    document.getElementById('view-orders').style.display = view === 'orders' ? '' : 'none';
+    document.getElementById('view-order-detail').style.display = view === 'order-detail' ? '' : 'none';
+    document.getElementById('nav-products').classList.toggle('active', view === 'products' || view === 'order-detail');
+    document.getElementById('nav-orders').classList.toggle('active', view === 'orders' || view === 'order-detail');
+    if (view === 'orders') loadOrders();
+    if (view === 'products') loadProducts();
+  }
+
+  async function loadProductOptions() {
+    const r = await api.get('/api/products?pageNo=1&pageSize=1000');
+    if (r.code !== 0) { toast(r.message || '产品列表加载失败'); return; }
+    productOptions = r.data.records || [];
+  }
+
+  function productLabel(p) {
+    return p.brand ? `${p.brand} / ${p.model}` : p.model;
+  }
+
+  function findProduct(id) {
+    return productOptions.find(p => Number(p.id) === Number(id));
+  }
+
+  function pageOrders(delta) {
+    const next = orderPage + delta;
+    if (next < 1) return;
+    orderPage = next;
+    loadOrders();
+  }
+
+  async function loadOrders() {
+    const orderNo = document.getElementById('q-order-no').value.trim();
+    const customer = document.getElementById('q-customer').value.trim();
+    let url = `/api/orders?pageNo=${orderPage}&pageSize=${orderPageSize}`;
+    if (orderNo) url += `&orderNo=${encodeURIComponent(orderNo)}`;
+    if (customer) url += `&customerName=${encodeURIComponent(customer)}`;
+    const r = await api.get(url);
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    const page = r.data;
+    document.getElementById('order-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
+    const body = document.getElementById('order-body');
+    const rows = page.records || [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="7" class="empty">暂无订单</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(o => `
+      <tr class="clickable" onclick="openOrderDetail(${o.id})">
+        <td><span class="model-link">${esc(o.orderNo)}</span></td>
+        <td>${esc(o.customerName)}</td>
+        <td class="muted nowrap">${fmtTime(o.orderTime)}</td>
+        <td class="num">${fmtMoney(o.totalReceived)}</td>
+        <td class="num">${fmtMoney(o.totalPurchase)}</td>
+        <td class="num">${fmtMoney(o.actualTotalProfit)}</td>
+        <td class="actions">
+          <div class="btn-row">
+            <button class="ghost" onclick="event.stopPropagation(); openOrderDetail(${o.id})">详情</button>
+            <button class="ghost danger" onclick="event.stopPropagation(); deleteOrder(${o.id})">删除</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function toDateTimeLocal(t) {
+    if (!t) return nowForDateTimeLocal();
+    return String(t).replace(' ', 'T').slice(0, 16);
+  }
+
+  function fmtMoney(v) {
+    return v == null ? '—' : Number(v).toFixed(2);
+  }
+
+  async function openOrderDetail(id) {
+    const r = await api.get(`/api/orders/${id}`);
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    const d = r.data;
+    currentOrderId = d.id;
+    document.getElementById('order-detail-title').textContent = `订单 ${d.orderNo}`;
+    document.getElementById('order-detail-meta').innerHTML = `
+      <div><div class="label">订单号</div><div class="val">${esc(d.orderNo)}</div></div>
+      <div><div class="label">客户名称</div><div class="val">${esc(d.customerName)}</div></div>
+      <div><div class="label">下订时间</div><div class="val">${fmtTime(d.orderTime)}</div></div>
+      <div><div class="label">实际收款额</div><div class="val">${fmtMoney(d.totalReceived)}</div></div>
+      <div><div class="label">采购额</div><div class="val">${fmtMoney(d.totalPurchase)}</div></div>
+      <div><div class="label">实际总利润</div><div class="val">${fmtMoney(d.actualTotalProfit)}</div></div>
+    `;
+    const items = d.items || [];
+    const body = document.getElementById('order-item-body');
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="11" class="empty">暂无型号明细，点右上「添加型号」</td></tr>';
+    } else {
+      body.innerHTML = items.map(it => `
+        <tr>
+          <td>${esc(it.model)}</td>
+          <td class="num">${it.quantity ?? '—'}</td>
+          <td class="num">${fmtMoney(it.actualReceived)}</td>
+          <td class="num">${fmtMoney(it.purchaseAmount)}</td>
+          <td class="num">${fmtMoney(it.salesAmount)}</td>
+          <td class="num">${fmtMoney(it.profit)}</td>
+          <td class="num">${fmtMoney(it.actualProfit)}</td>
+          <td class="num">${fmtMoney(it.salesUsd)}</td>
+          <td class="num">${it.exchangeRate != null ? Number(it.exchangeRate).toFixed(1) : '—'}</td>
+          <td class="num">${fmtMoney(it.salesCny)}</td>
+          <td class="actions">
+            <div class="btn-row">
+              <button class="ghost" onclick="openItemForm(${it.id})">编辑</button>
+              <button class="ghost danger" onclick="deleteOrderItem(${it.id})">删除</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+    document.getElementById('order-detail-totals').textContent =
+      `实际收款额 ${fmtMoney(d.totalReceived)} · 采购额 ${fmtMoney(d.totalPurchase)} · 实际总利润 ${fmtMoney(d.actualTotalProfit)}`;
+    showView('order-detail');
+  }
+
+  function openOrderModal(id) {
+    editingOrderId = id || null;
+    document.getElementById('order-modal-title').textContent = id ? `编辑订单 #${id}` : '新增采购订单';
+    if (id) {
+      api.get(`/api/orders/${id}`).then(r => {
+        if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+        const d = r.data;
+        document.getElementById('o-order-no').value = d.orderNo || '';
+        document.getElementById('o-customer').value = d.customerName || '';
+        document.getElementById('o-order-time').value = toDateTimeLocal(d.orderTime);
+        orderFormItems = (d.items || []).map(it => ({
+          productId: it.productId,
+          model: it.model,
+          quantity: it.quantity != null ? it.quantity : 1,
+          actualReceived: it.actualReceived != null ? it.actualReceived : '',
+          purchaseAmount: it.purchaseAmount != null ? it.purchaseAmount : '',
+        }));
+        renderOrderItemEditor();
+        document.getElementById('order-modal').classList.add('open');
+      });
+    } else {
+      document.getElementById('o-order-no').value = '';
+      document.getElementById('o-customer').value = '';
+      document.getElementById('o-order-time').value = nowForDateTimeLocal();
+      orderFormItems = [{ productId: '', model: '', quantity: 1, actualReceived: '', purchaseAmount: '' }];
+      renderOrderItemEditor();
+      document.getElementById('order-modal').classList.add('open');
+    }
+  }
+
+  function addOrderItemRow() {
+    orderFormItems.push({ productId: '', model: '', quantity: 1, actualReceived: '', purchaseAmount: '' });
+    renderOrderItemEditor();
+  }
+
+  function removeOrderItemRow(idx) {
+    orderFormItems.splice(idx, 1);
+    renderOrderItemEditor();
+  }
+
+  function onOrderItemInput(idx, field, value) {
+    const it = orderFormItems[idx];
+    if (!it) return;
+    it[field] = value;
+    if (field === 'productId') {
+      const p = findProduct(value);
+      if (p) it.model = p.model;
+    }
+    updateOrderFormPreview();
+  }
+
+  function renderOrderItemEditor() {
+    const host = document.getElementById('order-item-editor');
+    const opts = productOptions.map(p =>
+      `<option value="${p.id}">${esc(productLabel(p))}</option>`).join('');
+    host.innerHTML = orderFormItems.map((it, idx) => `
+      <div class="item-form-grid" style="align-items:end">
+        <div class="field"><label>型号 *</label>
+          <select onchange="onOrderItemInput(${idx}, 'productId', this.value)">
+            <option value="">请选择型号</option>
+            ${opts}
+          </select>
+        </div>
+        <div class="field"><label>数量</label>
+          <input type="number" min="1" step="1" value="${it.quantity ?? 1}"
+                 onchange="onOrderItemInput(${idx}, 'quantity', this.value === '' ? '' : Number(this.value))" />
+        </div>
+        <div class="field"><label>实际收款</label>
+          <input type="number" step="0.01" value="${it.actualReceived}"
+                 onchange="onOrderItemInput(${idx}, 'actualReceived', this.value === '' ? '' : Number(this.value))" />
+        </div>
+        <div class="field"><label>采购额</label>
+          <input type="number" step="0.01" value="${it.purchaseAmount}"
+                 onchange="onOrderItemInput(${idx}, 'purchaseAmount', this.value === '' ? '' : Number(this.value))" />
+        </div>
+      </div>
+      ${orderFormItems.length > 1 ? `<button class="ghost danger" type="button" onclick="removeOrderItemRow(${idx})" style="margin:-4px 0 8px">删除此行</button>` : ''}
+    `).join('');
+    // 回填选中项
+    host.querySelectorAll('select').forEach((sel, i) => {
+      if (orderFormItems[i] && orderFormItems[i].productId) {
+        sel.value = String(orderFormItems[i].productId);
+      }
+    });
+    updateOrderFormPreview();
+  }
+
+  /** 弹窗内预览：按当前产品最新报价 + 今日汇率估算 */
+  function updateOrderFormPreview() {
+    const used = Number(document.getElementById('today-rate').textContent);
+    const rate = Number.isFinite(used) && used > 0 ? used : null;
+    let totalSales = 0, totalPurchase = 0, totalReceived = 0;
+    orderFormItems.forEach(it => {
+      const p = findProduct(it.productId);
+      const usd = p && p.quoteUsd != null ? Number(p.quoteUsd) : null;
+      const qty = Number(it.quantity) || 0;
+      const purchase = it.purchaseAmount === '' || it.purchaseAmount == null ? 0 : Number(it.purchaseAmount);
+      const received = it.actualReceived === '' || it.actualReceived == null ? 0 : Number(it.actualReceived);
+      if (usd != null && rate != null) {
+        totalSales += usd * rate * qty;
+      }
+      totalPurchase += purchase;
+      totalReceived += received;
+    });
+    const profit = totalSales - totalPurchase;
+    const actualProfit = totalReceived - totalPurchase;
+    document.getElementById('order-form-preview').innerHTML = `
+      <span>销售额约 <b>${totalSales.toFixed(2)}</b></span>
+      <span>采购额 <b>${totalPurchase.toFixed(2)}</b></span>
+      <span>利润约 <b>${profit.toFixed(2)}</b></span>
+      <span>实际总利润约 <b>${actualProfit.toFixed(2)}</b></span>
+    `;
+  }
+
+  async function saveOrder() {
+    const orderNo = document.getElementById('o-order-no').value.trim();
+    const customer = document.getElementById('o-customer').value.trim();
+    const timeVal = document.getElementById('o-order-time').value;
+    if (!orderNo) { toast('请填写订单号'); return; }
+    if (!customer) { toast('请填写客户名称'); return; }
+    const items = orderFormItems.filter(it => it.productId);
+    if (!items.length) { toast('请至少选择一行型号'); return; }
+    const body = {
+      orderNo,
+      customerName: customer,
+      items: items.map(it => {
+        const row = {
+          productId: Number(it.productId),
+          quantity: it.quantity === '' || it.quantity == null ? 1 : Number(it.quantity),
+        };
+        if (it.actualReceived !== '' && it.actualReceived != null) row.actualReceived = Number(it.actualReceived);
+        if (it.purchaseAmount !== '' && it.purchaseAmount != null) row.purchaseAmount = Number(it.purchaseAmount);
+        return row;
+      }),
+    };
+    if (timeVal) body.orderTime = timeVal + ':00';
+    const r = editingOrderId
+      ? await api.send(`/api/orders/${editingOrderId}`, 'PUT', body)
+      : await api.send('/api/orders', 'POST', body);
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    closeModal('order-modal');
+    toast(editingOrderId ? '订单已更新' : '订单已创建');
+    const newId = editingOrderId || (r.data && r.data.id);
+    if (newId) openOrderDetail(newId);
+    else loadOrders();
+  }
+
+  async function deleteOrder(id) {
+    if (!id) return;
+    if (!confirm('确认删除该订单？\n它的全部型号明细会一并删除，且不可恢复。')) return;
+    const r = await api.send(`/api/orders/${id}`, 'DELETE');
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    toast('订单已删除');
+    currentOrderId = null;
+    showView('orders');
+    loadOrders();
+  }
+
+  function openItemForm(itemId) {
+    editingItemId = itemId || null;
+    document.getElementById('item-modal-title').textContent = itemId ? '编辑型号' : '添加型号';
+    if (!productOptions.length) {
+      loadProductOptions().then(() => fillItemForm(itemId));
+    } else {
+      fillItemForm(itemId);
+    }
+    document.getElementById('item-modal').classList.add('open');
+  }
+
+  async function fillItemForm(itemId) {
+    const sel = document.getElementById('it-product');
+    sel.innerHTML = '<option value="">请选择型号</option>'
+      + productOptions.map(p => `<option value="${p.id}">${esc(productLabel(p))}</option>`).join('');
+    if (itemId) {
+      const r = await api.get(`/api/orders/${currentOrderId}`);
+      if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+      const it = (r.data.items || []).find(x => x.id === itemId);
+      if (!it) { toast('明细不存在'); return; }
+      if (it.productId) sel.value = String(it.productId);
+      document.getElementById('it-quantity').value = it.quantity != null ? it.quantity : 1;
+      document.getElementById('it-received').value = it.actualReceived != null ? it.actualReceived : '';
+      document.getElementById('it-purchase').value = it.purchaseAmount != null ? it.purchaseAmount : '';
+    } else {
+      sel.value = '';
+      document.getElementById('it-quantity').value = 1;
+      document.getElementById('it-received').value = '';
+      document.getElementById('it-purchase').value = '';
+    }
+    updateItemCalcPreview();
+    sel.onchange = updateItemCalcPreview;
+    document.getElementById('it-quantity').oninput = updateItemCalcPreview;
+    document.getElementById('it-purchase').oninput = updateItemCalcPreview;
+    document.getElementById('it-received').oninput = updateItemCalcPreview;
+  }
+
+  function updateItemCalcPreview() {
+    const p = findProduct(document.getElementById('it-product').value);
+    const usd = p && p.quoteUsd != null ? Number(p.quoteUsd) : null;
+    const used = Number(document.getElementById('today-rate').textContent);
+    const rate = Number.isFinite(used) && used > 0 ? used : null;
+    const qty = Number(document.getElementById('it-quantity').value) || 0;
+    const purchase = document.getElementById('it-purchase').value === ''
+      ? null : Number(document.getElementById('it-purchase').value);
+    const received = document.getElementById('it-received').value === ''
+      ? null : Number(document.getElementById('it-received').value);
+    let html = '';
+    if (usd == null) {
+      html = '<span>该型号暂无报价，销售价/销售额/利润将为空</span>';
+    } else if (rate == null) {
+      html = '<span>汇率未获取到</span>';
+    } else {
+      const salesCny = usd * rate;
+      const salesAmount = salesCny * qty;
+      const profit = purchase == null ? null : salesAmount - purchase;
+      const actualProfit = (received == null || purchase == null) ? null : received - purchase;
+      html = `
+        <span>销售价(USD) <b>${usd.toFixed(2)}</b></span>
+        <span>汇率 <b>${rate.toFixed(1)}</b></span>
+        <span>销售价(CNY) <b>${salesCny.toFixed(2)}</b></span>
+        <span>销售额 <b>${salesAmount.toFixed(2)}</b></span>
+        <span>利润 <b>${profit == null ? '—' : profit.toFixed(2)}</b></span>
+        <span>实际总利润 <b>${actualProfit == null ? '—' : actualProfit.toFixed(2)}</b></span>
+      `;
+    }
+    document.getElementById('item-calc-preview').innerHTML = html;
+  }
+
+  /** 单行保存：整单重算——拉详情，替换该行（或追加）后 PUT 覆盖 */
+  async function saveOrderItem() {
+    if (!currentOrderId) { toast('请先打开订单'); return; }
+    const productId = document.getElementById('it-product').value;
+    if (!productId) { toast('请选择型号'); return; }
+    const r = await api.get(`/api/orders/${currentOrderId}`);
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    const d = r.data;
+    const qty = Number(document.getElementById('it-quantity').value) || 1;
+    const receivedVal = document.getElementById('it-received').value;
+    const purchaseVal = document.getElementById('it-purchase').value;
+    const row = {
+      productId: Number(productId),
+      quantity: qty,
+    };
+    if (receivedVal !== '') row.actualReceived = Number(receivedVal);
+    if (purchaseVal !== '') row.purchaseAmount = Number(purchaseVal);
+
+    let items = (d.items || []).map(it => {
+      const src = {
+        productId: it.productId,
+        quantity: it.quantity != null ? it.quantity : 1,
+      };
+      if (it.actualReceived != null) src.actualReceived = it.actualReceived;
+      if (it.purchaseAmount != null) src.purchaseAmount = it.purchaseAmount;
+      return src;
+    });
+    if (editingItemId) {
+      const idx = (d.items || []).findIndex(x => x.id === editingItemId);
+      if (idx >= 0) items[idx] = row;
+      else items.push(row);
+    } else {
+      items.push(row);
+    }
+
+    const body = {
+      orderNo: d.orderNo,
+      customerName: d.customerName,
+      orderTime: d.orderTime ? String(d.orderTime).replace(' ', 'T').slice(0, 19) : undefined,
+      items,
+    };
+    const saved = await api.send(`/api/orders/${currentOrderId}`, 'PUT', body);
+    if (saved.code !== 0) { toast(saved.message || '操作失败'); return; }
+    closeModal('item-modal');
+    toast('明细已保存');
+    openOrderDetail(currentOrderId);
+  }
+
+  async function deleteOrderItem(itemId) {
+    if (!currentOrderId || !itemId) return;
+    if (!confirm('确认删除该行型号明细？')) return;
+    const r = await api.get(`/api/orders/${currentOrderId}`);
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    const d = r.data;
+    const items = (d.items || []).filter(x => x.id !== itemId).map(it => {
+      const src = {
+        productId: it.productId,
+        quantity: it.quantity != null ? it.quantity : 1,
+      };
+      if (it.actualReceived != null) src.actualReceived = it.actualReceived;
+      if (it.purchaseAmount != null) src.purchaseAmount = it.purchaseAmount;
+      return src;
+    });
+    if (!items.length) { toast('至少保留一行明细；如需清空请删除订单'); return; }
+    const body = {
+      orderNo: d.orderNo,
+      customerName: d.customerName,
+      orderTime: d.orderTime ? String(d.orderTime).replace(' ', 'T').slice(0, 19) : undefined,
+      items,
+    };
+    const saved = await api.send(`/api/orders/${currentOrderId}`, 'PUT', body);
+    if (saved.code !== 0) { toast(saved.message || '操作失败'); return; }
+    toast('已删除该行');
+    openOrderDetail(currentOrderId);
+  }
+
 </script>
 </body>
 </html>
