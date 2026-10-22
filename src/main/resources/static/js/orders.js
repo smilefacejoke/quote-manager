@@ -50,7 +50,7 @@
     const body = document.getElementById('order-body');
     const rows = page.records || [];
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="7" class="empty">暂无订单</td></tr>';
+      body.innerHTML = '<tr><td colspan="8" class="empty">暂无订单</td></tr>';
       return;
     }
     body.innerHTML = rows.map(o => `
@@ -58,6 +58,7 @@
         <td><span class="model-link">${esc(o.orderNo)}</span></td>
         <td class="cell-strong">${esc(o.customerName)}</td>
         <td class="cell-sub nowrap">${fmtTime(o.orderTime)}</td>
+        <td class="num cell-sub">${fmtMoney(o.expectedReceipt)}</td>
         <td class="num">${fmtMoney(o.totalReceived)}</td>
         <td class="num cell-sub">${fmtMoney(o.totalPurchase)}</td>
         <td class="num money-hl">${fmtMoney(o.actualTotalProfit)}</td>
@@ -85,6 +86,11 @@
     const profitNum = d.actualTotalProfit == null ? 0 : Number(d.actualTotalProfit);
     const profitClass = profitNum > 0 ? 'positive' : (profitNum < 0 ? 'negative' : 'neutral');
     document.getElementById('order-summary-cards').innerHTML = `
+      <div class="summary-card neutral">
+        <div class="label">预计收款</div>
+        <div class="val">${fmtMoney(d.expectedReceipt)}</div>
+        <div class="hint">Σ 各型号销售额</div>
+      </div>
       <div class="summary-card neutral">
         <div class="label">实际收款（整单）</div>
         <div class="val">${fmtMoney(d.totalReceived)}</div>
@@ -128,7 +134,7 @@
         </tr>`).join('');
     }
     document.getElementById('order-detail-totals').textContent =
-      `实际收款（整单）${fmtMoney(d.totalReceived)} · 采购额合计 ${fmtMoney(d.totalPurchase)} · 实际总利润 ${fmtMoney(d.actualTotalProfit)}`;
+      `预计收款 ${fmtMoney(d.expectedReceipt)} · 实际收款（整单）${fmtMoney(d.totalReceived)} · 采购额合计 ${fmtMoney(d.totalPurchase)} · 实际总利润 ${fmtMoney(d.actualTotalProfit)}`;
     showView('order-detail');
     loadProductOptions();
   }

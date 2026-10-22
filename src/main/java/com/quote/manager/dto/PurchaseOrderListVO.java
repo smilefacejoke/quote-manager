@@ -15,6 +15,8 @@ public class PurchaseOrderListVO {
     private String customerName;
     private LocalDateTime orderTime;
 
+    /** 预计收款 = Σ 明细销售额 */
+    private BigDecimal expectedReceipt;
     /** 实际收款额 = 订单主表字段（整单一笔） */
     private BigDecimal totalReceived;
     /** 采购额 = Σ 明细采购额 */

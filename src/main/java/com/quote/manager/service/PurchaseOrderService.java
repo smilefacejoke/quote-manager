@@ -111,6 +111,7 @@ public class PurchaseOrderService {
         vo.setOrderTime(order.getOrderTime());
 
         BigDecimal totalPurchase = BigDecimal.ZERO;
+        BigDecimal expectedReceipt = BigDecimal.ZERO;
         List<PurchaseOrderDetailVO.Item> itemVos = new ArrayList<>();
         for (PurchaseOrderItem it : items) {
             PurchaseOrderDetailVO.Item iv = new PurchaseOrderDetailVO.Item();
@@ -127,9 +128,11 @@ public class PurchaseOrderService {
             iv.setQuoted(it.getSalesUsd() != null);
             itemVos.add(iv);
             totalPurchase = totalPurchase.add(nz(it.getPurchaseAmount()));
+            expectedReceipt = expectedReceipt.add(nz(it.getSalesAmount()));
         }
         vo.setItems(itemVos);
         BigDecimal received = nz(order.getActualReceived());
+        vo.setExpectedReceipt(expectedReceipt.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         vo.setTotalReceived(order.getActualReceived() != null
                 ? order.getActualReceived().setScale(MONEY_SCALE, RoundingMode.HALF_UP)
                 : null);
@@ -290,10 +293,13 @@ public class PurchaseOrderService {
 
     private void fillTotals(PurchaseOrderListVO vo, PurchaseOrder order, List<PurchaseOrderItem> items) {
         BigDecimal totalPurchase = BigDecimal.ZERO;
+        BigDecimal expectedReceipt = BigDecimal.ZERO;
         for (PurchaseOrderItem it : items) {
             totalPurchase = totalPurchase.add(nz(it.getPurchaseAmount()));
+            expectedReceipt = expectedReceipt.add(nz(it.getSalesAmount()));
         }
         BigDecimal received = nz(order.getActualReceived());
+        vo.setExpectedReceipt(expectedReceipt.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         vo.setTotalReceived(order.getActualReceived());
         vo.setTotalPurchase(totalPurchase.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         vo.setActualTotalProfit(received.subtract(totalPurchase).setScale(MONEY_SCALE, RoundingMode.HALF_UP));

@@ -96,11 +96,12 @@ public class InvoiceImportService {
             throw new BizException("发票解析失败：" + msg);
         }
 
-        if (!StringUtils.hasText(orderNo)) {
-            throw new BizException("发票里未找到 Your PO#（订单号）");
-        }
         if (!StringUtils.hasText(customerName)) {
             throw new BizException("发票里未找到 To（客户名称）");
+        }
+        // 无 Your PO# 时按「当日日期 + 当日第几单」自动生成，如 20261023001
+        if (!StringUtils.hasText(orderNo)) {
+            orderNo = generateOrderNo();
         }
         if (items.isEmpty()) {
             throw new BizException("发票里没有明细行（Part Number / Price / Qty）");
@@ -150,12 +151,16 @@ public class InvoiceImportService {
             created.setModel(line.model);
             created.setCreatedAt(LocalDateTime.now());
             productMapper.insert(created);
+            product = created;
             result.productsCreated++;
+            // 新型号：发票 Price 必须落到报价表的报价(USD)，采购价待用户补充
+            insertQuoteFromInvoice(product.getId(), line, rate);
+            result.quotesNeedSupplement++;
             return;
         }
         Quote latest = findLatestQuote(product.getId());
         if (latest == null) {
-            // 有产品无报价：无法自动补采购价，计入待补充
+            insertQuoteFromInvoice(product.getId(), line, rate);
             result.quotesNeedSupplement++;
             return;
         }
@@ -168,14 +173,51 @@ public class InvoiceImportService {
         // 不相同 → 更新最新报价：报价USD=发票价，报价CNY=USD×汇率，采购价保留上次
         latest.setQuoteUsd(line.priceUsd.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         latest.setQuotePrice(line.priceUsd.multiply(rate).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        if (latest.getQuantity() != null) {
-            latest.setQuoteTotalUsd(latest.getQuoteUsd()
-                    .multiply(BigDecimal.valueOf(latest.getQuantity()))
-                    .setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        }
+        latest.setQuantity(line.qty);
+        latest.setQuoteTotalUsd(latest.getQuoteUsd()
+                .multiply(BigDecimal.valueOf(line.qty))
+                .setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         latest.setQuoteTime(LocalDateTime.now());
         quoteMapper.updateById(latest);
         result.quotesUpdated++;
+    }
+
+    /**
+     * 按发票 Price 写入报价：报价USD=Price，报价CNY=USD×汇率，数量=发票Qty。
+     * 采购价库内约束非空，先落 0 占位，提示用户补充真实采购价。
+     */
+    private void insertQuoteFromInvoice(Long productId, ItemLine line, BigDecimal rate) {
+        BigDecimal usd = line.priceUsd.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        Quote q = new Quote();
+        q.setProductId(productId);
+        q.setPurchasePrice(BigDecimal.ZERO);
+        q.setQuotePrice(line.priceUsd.multiply(rate).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        q.setQuantity(line.qty);
+        q.setQuoteUsd(usd);
+        q.setQuoteTotalUsd(usd.multiply(BigDecimal.valueOf(line.qty)).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        q.setQuoteTime(LocalDateTime.now());
+        q.setRemark("发票导入，采购价待补充");
+        quoteMapper.insert(q);
+    }
+
+    /** 订单号：当日日期 yyyyMMdd + 当日已添加订单数+1（三位），如 20261023001 */
+    private String generateOrderNo() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime dayStart = today.atStartOfDay();
+        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
+        long todayCount = orderMapper.selectCount(new LambdaQueryWrapper<PurchaseOrder>()
+                .ge(PurchaseOrder::getCreatedAt, dayStart)
+                .lt(PurchaseOrder::getCreatedAt, dayEnd));
+        String prefix = today.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        // 兜底：按前缀再查一遍，避免 createdAt 边界或手动改号导致重复
+        String base;
+        int seq = (int) todayCount + 1;
+        do {
+            base = prefix + String.format("%03d", seq);
+            seq++;
+        } while (orderMapper.selectCount(new LambdaQueryWrapper<PurchaseOrder>()
+                .eq(PurchaseOrder::getOrderNo, base)) > 0);
+        return base;
     }
 
     private Product findProductByModel(String model) {
