@@ -23,6 +23,9 @@ public class PurchaseOrderSaveRequest {
     /** 下订时间；为空取当前 */
     private LocalDateTime orderTime;
 
+    /** 实际收款(CNY)：整单一笔 */
+    private BigDecimal actualReceived;
+
     @Valid
     @NotEmpty(message = "至少填写一行型号明细")
     private List<Item> items;
@@ -30,17 +33,14 @@ public class PurchaseOrderSaveRequest {
     @Data
     public static class Item {
 
-        /** 系统产品 id；用于取最新报价的报价 USD */
+        /** 系统产品 id；可空，空则按 model 查找/自动建档 */
         private Long productId;
 
-        /** 型号；productId 为空时必填 */
+        /** 型号文本；productId 为空时必填 */
         private String model;
 
         /** 数量 */
         private Integer quantity;
-
-        /** 实际收款(CNY)，用户填写 */
-        private BigDecimal actualReceived;
 
         /** 采购额(CNY)，用户填写 */
         private BigDecimal purchaseAmount;

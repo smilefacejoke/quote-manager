@@ -5,9 +5,10 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 采购订单主表：一单可含多行型号明细 */
+/** 采购订单主表：一单可含多行型号明细；实际收款是整单一笔 */
 @Data
 @TableName("purchase_order")
 public class PurchaseOrder {
@@ -23,6 +24,9 @@ public class PurchaseOrder {
 
     /** 下订时间 */
     private LocalDateTime orderTime;
+
+    /** 实际收款(CNY)：整单一笔，不按型号拆 */
+    private BigDecimal actualReceived;
 
     private LocalDateTime createdAt;
 }

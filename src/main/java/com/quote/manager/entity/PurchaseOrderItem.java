@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 /**
  * 采购订单明细（按型号一行）。
  * 价格字段在保存时快照落库，避免后续报价变动影响历史订单。
+ * 实际收款在订单主表，不在此表。
  */
 @Data
 @TableName("purchase_order_item")
@@ -20,15 +21,12 @@ public class PurchaseOrderItem {
 
     private Long orderId;
 
-    /** 关联系统产品；为空则仅保留型号文本 */
+    /** 关联系统产品；型号录入时查找/自动建档 */
     private Long productId;
 
     private String model;
 
     private Integer quantity;
-
-    /** 实际收款(CNY)，用户填写 */
-    private BigDecimal actualReceived;
 
     /** 采购额(CNY)，用户填写 */
     private BigDecimal purchaseAmount;

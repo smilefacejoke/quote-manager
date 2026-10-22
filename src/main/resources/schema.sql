@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS purchase_order (
     order_no      VARCHAR(64)  NOT NULL COMMENT '订单号（手填）',
     customer_name VARCHAR(128) NOT NULL COMMENT '客户名称',
     order_time    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下订时间',
+    actual_received DECIMAL(12, 2) COMMENT '实际收款(CNY)，整单一笔，用户填写',
     created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -73,3 +74,5 @@ ALTER TABLE product DROP COLUMN IF EXISTS spec;
 ALTER TABLE quote ADD COLUMN IF NOT EXISTS quantity INT;
 ALTER TABLE quote ADD COLUMN IF NOT EXISTS quote_usd DECIMAL(12, 2);
 ALTER TABLE quote ADD COLUMN IF NOT EXISTS quote_total_usd DECIMAL(12, 2);
+
+ALTER TABLE purchase_order ADD COLUMN IF NOT EXISTS actual_received DECIMAL(12, 2);

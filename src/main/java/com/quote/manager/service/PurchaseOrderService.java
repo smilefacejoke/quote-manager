@@ -33,14 +33,16 @@ import java.util.stream.Collectors;
  * <p>
  * 金额口径（与业务表格一致，采购额按正数成本填写）：
  * <ul>
+ *   <li>实际收款：整单一笔，在订单主表，不按型号拆</li>
  *   <li>销售价(USD) = 该型号最新报价的 quote_usd</li>
  *   <li>汇率 = 当日业务汇率 usd_cny_used</li>
  *   <li>销售价(CNY) = 销售价(USD) × 汇率</li>
  *   <li>销售额 = 销售价(CNY) × 数量</li>
  *   <li>利润 = 销售额 − 采购额</li>
- *   <li>实际总利润 = 实际收款额 − 采购额（订单级为合计相减）</li>
+ *   <li>实际总利润 = 实际收款 − Σ 明细采购额</li>
  * </ul>
  * 价格列保存时快照，后续报价/汇率变动不影响历史订单。
+ * 型号录入：库内查找；找不到则自动建档（提示尚未报价）。
  */
 @Service
 @RequiredArgsConstructor
@@ -83,13 +85,12 @@ public class PurchaseOrderService {
             vo.setCustomerName(o.getCustomerName());
             vo.setOrderTime(o.getOrderTime());
             List<PurchaseOrderItem> items = itemsByOrder.getOrDefault(o.getId(), List.of());
-            fillTotals(vo, items);
+            fillTotals(vo, o, items);
             vo.setItems(items.stream().map(it -> {
                 PurchaseOrderListVO.ItemSummary s = new PurchaseOrderListVO.ItemSummary();
                 s.setId(it.getId());
                 s.setModel(it.getModel());
                 s.setQuantity(it.getQuantity());
-                s.setActualReceived(it.getActualReceived());
                 s.setPurchaseAmount(it.getPurchaseAmount());
                 return s;
             }).toList());
@@ -109,7 +110,6 @@ public class PurchaseOrderService {
         vo.setCustomerName(order.getCustomerName());
         vo.setOrderTime(order.getOrderTime());
 
-        BigDecimal totalReceived = BigDecimal.ZERO;
         BigDecimal totalPurchase = BigDecimal.ZERO;
         List<PurchaseOrderDetailVO.Item> itemVos = new ArrayList<>();
         for (PurchaseOrderItem it : items) {
@@ -118,23 +118,23 @@ public class PurchaseOrderService {
             iv.setProductId(it.getProductId());
             iv.setModel(it.getModel());
             iv.setQuantity(it.getQuantity());
-            iv.setActualReceived(it.getActualReceived());
             iv.setPurchaseAmount(it.getPurchaseAmount());
             iv.setSalesUsd(it.getSalesUsd());
             iv.setExchangeRate(it.getExchangeRate());
             iv.setSalesCny(it.getSalesCny());
             iv.setSalesAmount(it.getSalesAmount());
             iv.setProfit(it.getProfit());
-            iv.setActualProfit(nz(it.getActualReceived()).subtract(nz(it.getPurchaseAmount()))
-                    .setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+            iv.setQuoted(it.getSalesUsd() != null);
             itemVos.add(iv);
-            totalReceived = totalReceived.add(nz(it.getActualReceived()));
             totalPurchase = totalPurchase.add(nz(it.getPurchaseAmount()));
         }
         vo.setItems(itemVos);
-        vo.setTotalReceived(totalReceived.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        BigDecimal received = nz(order.getActualReceived());
+        vo.setTotalReceived(order.getActualReceived() != null
+                ? order.getActualReceived().setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                : null);
         vo.setTotalPurchase(totalPurchase.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        vo.setActualTotalProfit(totalReceived.subtract(totalPurchase).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        vo.setActualTotalProfit(received.subtract(totalPurchase).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         return vo;
     }
 
@@ -173,6 +173,7 @@ public class PurchaseOrderService {
         order.setOrderNo(req.getOrderNo().trim());
         order.setCustomerName(req.getCustomerName().trim());
         order.setOrderTime(req.getOrderTime() != null ? req.getOrderTime() : LocalDateTime.now());
+        order.setActualReceived(req.getActualReceived());
         if (order.getCreatedAt() == null) {
             order.setCreatedAt(LocalDateTime.now());
         }
@@ -186,30 +187,50 @@ public class PurchaseOrderService {
         for (PurchaseOrderSaveRequest.Item src : items) {
             PurchaseOrderItem it = new PurchaseOrderItem();
             it.setOrderId(orderId);
-            it.setProductId(src.getProductId());
-            String model = resolveModel(src);
-            it.setModel(model);
+            Product product = resolveProduct(src);
+            it.setProductId(product.getId());
+            it.setModel(product.getModel());
             it.setQuantity(src.getQuantity() != null ? src.getQuantity() : 1);
-            it.setActualReceived(src.getActualReceived());
             it.setPurchaseAmount(src.getPurchaseAmount());
             applyPricing(it, rate);
             itemMapper.insert(it);
         }
     }
 
-    /** 型号：优先取产品表；productId 为空时用请求里的 model 文本 */
-    private String resolveModel(PurchaseOrderSaveRequest.Item src) {
+    /**
+     * 型号解析：
+     * 1. 带 productId 直接用；
+     * 2. 否则按型号精确查找；
+     * 3. 找不到则自动建档（无品牌），前端提示「该型号还未进行报价」。
+     */
+    private Product resolveProduct(PurchaseOrderSaveRequest.Item src) {
         if (src.getProductId() != null) {
             Product p = productMapper.selectById(src.getProductId());
             if (p == null) {
                 throw new BizException("产品不存在: " + src.getProductId());
             }
-            return p.getModel();
+            return p;
         }
-        if (!StringUtils.hasText(src.getModel())) {
+        String model = src.getModel() != null ? src.getModel().trim() : null;
+        if (!StringUtils.hasText(model)) {
             throw new BizException("型号不能为空");
         }
-        return src.getModel().trim();
+        Product existing = findProductByModel(model);
+        if (existing != null) {
+            return existing;
+        }
+        Product created = new Product();
+        created.setBrand(null);
+        created.setModel(model);
+        created.setCreatedAt(LocalDateTime.now());
+        productMapper.insert(created);
+        return created;
+    }
+
+    private Product findProductByModel(String model) {
+        LambdaQueryWrapper<Product> qw = new LambdaQueryWrapper<>();
+        qw.eq(Product::getModel, model);
+        return productMapper.selectList(qw).stream().findFirst().orElse(null);
     }
 
     /**
@@ -254,16 +275,15 @@ public class PurchaseOrderService {
         return quotes.isEmpty() ? null : quotes.get(0);
     }
 
-    private void fillTotals(PurchaseOrderListVO vo, List<PurchaseOrderItem> items) {
-        BigDecimal totalReceived = BigDecimal.ZERO;
+    private void fillTotals(PurchaseOrderListVO vo, PurchaseOrder order, List<PurchaseOrderItem> items) {
         BigDecimal totalPurchase = BigDecimal.ZERO;
         for (PurchaseOrderItem it : items) {
-            totalReceived = totalReceived.add(nz(it.getActualReceived()));
             totalPurchase = totalPurchase.add(nz(it.getPurchaseAmount()));
         }
-        vo.setTotalReceived(totalReceived.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        BigDecimal received = nz(order.getActualReceived());
+        vo.setTotalReceived(order.getActualReceived());
         vo.setTotalPurchase(totalPurchase.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        vo.setActualTotalProfit(totalReceived.subtract(totalPurchase).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        vo.setActualTotalProfit(received.subtract(totalPurchase).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
     }
 
     private Map<Long, List<PurchaseOrderItem>> fetchItemsByOrder(List<Long> orderIds) {

@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /** 订单详情：主表 + 汇总 + 带计算列的明细 */
 @Data
@@ -14,14 +15,15 @@ public class PurchaseOrderDetailVO {
     private String customerName;
     private LocalDateTime orderTime;
 
+    /** 实际收款额 = 订单主表字段（整单一笔） */
     private BigDecimal totalReceived;
     private BigDecimal totalPurchase;
     /** 实际总利润 = 实际收款额 − 采购额 */
     private BigDecimal actualTotalProfit;
 
-    private java.util.List<Item> items;
+    private List<Item> items;
 
-    /** 明细行：用户输入 + 快照/计算列，口径与业务表格一致 */
+    /** 明细行：用户输入 + 快照/计算列 */
     @Data
     public static class Item {
         private Long id;
@@ -29,7 +31,6 @@ public class PurchaseOrderDetailVO {
         private String model;
         private Integer quantity;
 
-        private BigDecimal actualReceived;
         private BigDecimal purchaseAmount;
 
         private BigDecimal salesUsd;
@@ -38,7 +39,7 @@ public class PurchaseOrderDetailVO {
         private BigDecimal salesAmount;
         /** 利润 = 销售额 − 采购额 */
         private BigDecimal profit;
-        /** 行实际利润 = 实际收款 − 采购额（表格中的「实际总利润」列） */
-        private BigDecimal actualProfit;
+        /** 是否已有报价（false 时销售价/利润为空） */
+        private Boolean quoted;
     }
 }
