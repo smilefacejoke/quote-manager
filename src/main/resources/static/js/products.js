@@ -4,6 +4,10 @@
   let currentProductId = null;
   let currentProductLabel = '';
   let editingQuoteId = null;
+  /** 历史弹窗当前行，编辑时预填 */
+  let quoteHistoryCache = [];
+  /** 从订单详情进入时只读：不提供录入/编辑/删除 */
+  let historyReadOnly = false;
   const productCache = {};
   /** 勾选中的产品 id（跨分页保留，翻页/查询后清空） */
   const selectedProductIds = new Set();
@@ -300,10 +304,14 @@
     loadProducts();
   }
 
-  async function openHistory(productId) {
+  async function openHistory(productId, modelLabel, readOnly) {
     const p = productCache[productId];
     currentProductId = productId;
-    currentProductLabel = p ? `${p.brand} / ${p.model}` : `产品 #${productId}`;
+    historyReadOnly = !!readOnly;
+    currentProductLabel = modelLabel || (p ? `${p.brand} / ${p.model}` : `产品 #${productId}`);
+    // 只读时隐藏「录入新报价」
+    const addBtn = document.getElementById('history-add-btn');
+    if (addBtn) addBtn.style.display = historyReadOnly ? 'none' : '';
     document.getElementById('history-title').textContent = '历史报价';
     document.getElementById('history-sub').textContent = currentProductLabel;
     document.getElementById('history-body').innerHTML = '<tr><td colspan="8" class="empty">加载中…</td></tr>';
@@ -316,10 +324,13 @@
     }
     const rows = r.data.records || [];
     if (!rows.length) {
-      document.getElementById('history-body').innerHTML = '<tr><td colspan="8" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
+      document.getElementById('history-body').innerHTML = historyReadOnly
+        ? '<tr><td colspan="8" class="empty">暂无报价</td></tr>'
+        : '<tr><td colspan="8" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
       return;
     }
     // 已按报价时间倒序（服务端），第一条为最新
+    quoteHistoryCache = rows;
     document.getElementById('history-body').innerHTML = rows.map((q, idx) => `
       <tr>
         <td class="num">${Number(q.purchasePrice).toFixed(2)}</td>
@@ -329,8 +340,12 @@
         <td class="num">${q.quoteTotalUsd != null ? Number(q.quoteTotalUsd).toFixed(2) : '—'}</td>
         <td class="muted nowrap">${fmtTime(q.quoteTime)}${idx === 0 ? '<span class="latest-tag">最新</span>' : ''}</td>
         <td>${esc(q.remark || '')}</td>
-        <td>
-          <button class="ghost danger" onclick="deleteQuote(${q.id})">删除</button>
+        <td class="actions">
+          ${historyReadOnly ? '' : `
+          <div class="btn-row">
+            <button class="ghost" onclick="editQuote(${q.id})">编辑</button>
+            <button class="ghost danger" onclick="deleteQuote(${q.id})">删除</button>
+          </div>`}
         </td>
       </tr>`).join('');
   }
@@ -349,6 +364,24 @@
     document.getElementById('quote-modal').classList.add('open');
   }
 
+  /** 编辑历史里的一条报价：预填后就地更新 */
+  function editQuote(id) {
+    const q = (quoteHistoryCache || []).find(x => x.id === id);
+    if (!q) { toast('报价记录不存在'); return; }
+    editingQuoteId = id;
+    document.getElementById('quote-modal-title').textContent = `编辑报价 #${id}`;
+    document.getElementById('quote-sub').textContent = currentProductLabel;
+    document.getElementById('f-purchase-price').value =
+      q.purchasePrice != null ? q.purchasePrice : '';
+    document.getElementById('f-quote-price').value =
+      q.quotePrice != null ? q.quotePrice : '';
+    document.getElementById('f-quantity').value =
+      q.quantity != null ? q.quantity : '';
+    document.getElementById('f-quote-time').value = toDateTimeLocal(q.quoteTime);
+    document.getElementById('f-remark').value = q.remark || '';
+    document.getElementById('quote-modal').classList.add('open');
+  }
+
   async function saveQuote() {
     const timeVal = document.getElementById('f-quote-time').value;
     const qtyVal = document.getElementById('f-quantity').value;
@@ -360,11 +393,13 @@
       quoteTime: timeVal ? timeVal + ':00' : null,
       remark: document.getElementById('f-remark').value,
     };
-    const r = await api.send('/api/quotes', 'POST', body);
+    const r = editingQuoteId
+      ? await api.send(`/api/quotes/${editingQuoteId}`, 'PUT', body)
+      : await api.send('/api/quotes', 'POST', body);
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     closeModal('quote-modal');
-    toast('报价已保存');
-    openHistory(currentProductId);
+    toast(editingQuoteId ? '报价已更新' : '报价已保存');
+    openHistory(currentProductId, currentProductLabel, historyReadOnly);
     loadProducts();
   }
 
@@ -373,6 +408,6 @@
     const r = await api.send(`/api/quotes/${id}`, 'DELETE');
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     toast('已删除');
-    openHistory(currentProductId);
+    openHistory(currentProductId, currentProductLabel, historyReadOnly);
     loadProducts();
   }

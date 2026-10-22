@@ -265,3 +265,12 @@
       font-size: 12px; color: var(--muted);
     }
     .calc-preview b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+    /* 历史报价：编辑/删除并排 */
+    .history-table td.actions .btn-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-start;
+    }

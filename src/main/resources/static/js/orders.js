@@ -89,17 +89,14 @@
       <div class="summary-card neutral">
         <div class="label">预计收款</div>
         <div class="val">${fmtMoney(d.expectedReceipt)}</div>
-        <div class="hint">Σ 各型号销售额</div>
       </div>
       <div class="summary-card neutral">
         <div class="label">实际收款（整单）</div>
         <div class="val">${fmtMoney(d.totalReceived)}</div>
-        <div class="hint">一单一笔，不按型号拆</div>
       </div>
       <div class="summary-card neutral">
         <div class="label">采购额（合计）</div>
         <div class="val">${fmtMoney(d.totalPurchase)}</div>
-        <div class="hint">Σ 各型号采购额</div>
       </div>
       <div class="summary-card ${profitClass}">
         <div class="label">实际总利润</div>
@@ -115,7 +112,9 @@
       body.innerHTML = items.map(it => `
         <tr>
           <td class="cell-strong">
-            ${esc(it.model)}
+            ${it.productId
+              ? `<span class="model-link" data-pid="${Number(it.productId)}" data-model="${esc(it.model)}" onclick="event.stopPropagation(); openHistory(Number(this.dataset.pid), this.dataset.model, true)">${esc(it.model)}</span>`
+              : esc(it.model)}
             ${it.quoted === false ? '<span class="muted">（未报价）</span>' : ''}
           </td>
           <td class="num">${it.quantity ?? '—'}</td>
