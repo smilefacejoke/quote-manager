@@ -133,6 +133,63 @@
     loadProductOptions();
   }
 
+
+  /** 导入采购发票：To/PO#/send Date + Part Number/Price/Qty */
+  async function importInvoice(input) {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    const resp = await fetch('/api/orders/import-invoice', {
+      method: 'POST',
+      body: form,
+    });
+    let r;
+    try {
+      r = await resp.json();
+    } catch (_) {
+      toast('导入失败，文件无法解析');
+      return;
+    }
+    if (r.code !== 0) {
+      toast(r.message || '导入失败');
+      return;
+    }
+    const d = r.data || {};
+    const parts = [
+      `订单 ${d.orderNo || ''} 已生成（${d.itemsImported || 0} 行明细）`,
+    ];
+    if (d.productsCreated) {
+      parts.push(`新增 ${d.productsCreated} 个型号，请去补充报价`);
+    }
+    if (d.quotesNeedSupplement) {
+      parts.push(`${d.quotesNeedSupplement} 个型号待补充报价`);
+    }
+    if (d.quotesUpdated) {
+      parts.push(`更新报价 ${d.quotesUpdated} 条`);
+    }
+    if (d.quotesUnchanged) {
+      parts.push(`报价一致 ${d.quotesUnchanged} 条`);
+    }
+    toast(parts.join('；'));
+    if (d.productsCreated || d.quotesNeedSupplement) {
+      setTimeout(() => {
+        const n = (d.productsCreated || 0) + (d.quotesNeedSupplement || 0);
+        toast(`提醒：共 ${n} 个型号需要补充报价/采购价`);
+      }, 2800);
+    }
+    orderPage = 1;
+    loadOrders();
+    loadProductOptions();
+    if (d.orderNo) {
+      // 打开新订单详情便于核对
+      const list = await api.get(`/api/orders?pageNo=1&pageSize=5&orderNo=${encodeURIComponent(d.orderNo)}`);
+      const rec = list.data && list.data.records && list.data.records[0];
+      if (rec) openOrderDetail(rec.id);
+    }
+  }
+
   function openOrderModal(id) {
     editingOrderId = id || null;
     document.getElementById('order-modal-title').textContent = id ? `编辑订单 #${id}` : '新增采购订单';

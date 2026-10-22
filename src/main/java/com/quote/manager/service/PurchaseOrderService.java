@@ -192,7 +192,13 @@ public class PurchaseOrderService {
             it.setModel(product.getModel());
             it.setQuantity(src.getQuantity() != null ? src.getQuantity() : 1);
             it.setPurchaseAmount(src.getPurchaseAmount());
-            applyPricing(it, rate);
+            // 发票导入可直接指定销售价USD；否则取最新报价
+            if (src.getSalesUsd() != null) {
+                it.setSalesUsd(src.getSalesUsd());
+                applyPricingWithUsd(it, rate, src.getSalesUsd());
+            } else {
+                applyPricing(it, rate);
+            }
             itemMapper.insert(it);
         }
     }
@@ -248,6 +254,13 @@ public class PurchaseOrderService {
                 salesUsd = latest.getQuoteUsd();
             }
         }
+        it.setSalesUsd(salesUsd);
+        applyPricingWithUsd(it, rate, salesUsd);
+    }
+
+    /** 用给定销售价USD 计算 CNY/销售额/利润；usd 为空则相关列置空 */
+    private void applyPricingWithUsd(PurchaseOrderItem it, BigDecimal rate, BigDecimal salesUsd) {
+        it.setExchangeRate(rate);
         it.setSalesUsd(salesUsd);
         if (salesUsd == null) {
             it.setSalesCny(null);

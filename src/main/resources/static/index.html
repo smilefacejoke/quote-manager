@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>型号报价管理系统</title>
-  <link rel="stylesheet" href="css/app.css?v=20261022b" />
+  <link rel="stylesheet" href="css/app.css?v=20261023a" />
 </head>
 <body>
 <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
@@ -76,6 +76,9 @@
       <input id="q-order-no" placeholder="订单号" style="width:150px" />
       <input id="q-customer" placeholder="客户名称" style="width:150px" />
       <button class="ghost" onclick="loadOrders()">查询</button>
+      <button class="ghost" onclick="document.getElementById('invoice-file').click()">导入发票</button>
+      <input type="file" id="invoice-file" accept=".xlsx,.xls" style="display:none"
+             onchange="importInvoice(this)" />
       <button class="primary" onclick="openOrderModal()">+ 新增订单</button>
     </div>
     <table>
@@ -268,9 +271,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261022b"></script>
-<script src="js/products.js?v=20261022b"></script>
-<script src="js/orders.js?v=20261022b"></script>
-<script src="js/init.js?v=20261022b"></script>
+<script src="js/common.js?v=20261023a"></script>
+<script src="js/products.js?v=20261023a"></script>
+<script src="js/orders.js?v=20261023a"></script>
+<script src="js/init.js?v=20261023a"></script>
 </body>
 </html>

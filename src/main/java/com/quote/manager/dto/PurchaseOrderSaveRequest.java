@@ -44,5 +44,11 @@ public class PurchaseOrderSaveRequest {
 
         /** 采购额(CNY)，用户填写 */
         private BigDecimal purchaseAmount;
+
+        /**
+         * 销售价(USD) 覆盖值：发票导入时带入；
+         * 为空则按该型号最新报价的 quote_usd 取。
+         */
+        private BigDecimal salesUsd;
     }
 }
