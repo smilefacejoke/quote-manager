@@ -56,11 +56,11 @@
     body.innerHTML = rows.map(o => `
       <tr class="clickable" onclick="openOrderDetail(${o.id})">
         <td><span class="model-link">${esc(o.orderNo)}</span></td>
-        <td>${esc(o.customerName)}</td>
-        <td class="muted nowrap">${fmtTime(o.orderTime)}</td>
+        <td class="cell-strong">${esc(o.customerName)}</td>
+        <td class="cell-sub nowrap">${fmtTime(o.orderTime)}</td>
         <td class="num">${fmtMoney(o.totalReceived)}</td>
-        <td class="num">${fmtMoney(o.totalPurchase)}</td>
-        <td class="num">${fmtMoney(o.actualTotalProfit)}</td>
+        <td class="num cell-sub">${fmtMoney(o.totalPurchase)}</td>
+        <td class="num money-hl">${fmtMoney(o.actualTotalProfit)}</td>
         <td class="actions">
           <div class="btn-row">
             <button class="ghost" onclick="event.stopPropagation(); openOrderDetail(${o.id})">详情</button>
@@ -76,13 +76,30 @@
     const d = r.data;
     currentOrderId = d.id;
     document.getElementById('order-detail-title').textContent = `订单 ${d.orderNo}`;
+    // 信息条只放单据属性；金额进摘要卡
     document.getElementById('order-detail-meta').innerHTML = `
       <div><div class="label">订单号</div><div class="val">${esc(d.orderNo)}</div></div>
       <div><div class="label">客户名称</div><div class="val">${esc(d.customerName)}</div></div>
       <div><div class="label">下订时间</div><div class="val">${fmtTime(d.orderTime)}</div></div>
-      <div><div class="label">实际收款（整单）</div><div class="val">${fmtMoney(d.totalReceived)}</div></div>
-      <div><div class="label">采购额（合计）</div><div class="val">${fmtMoney(d.totalPurchase)}</div></div>
-      <div><div class="label">实际总利润</div><div class="val">${fmtMoney(d.actualTotalProfit)}</div></div>
+    `;
+    const profitNum = d.actualTotalProfit == null ? 0 : Number(d.actualTotalProfit);
+    const profitClass = profitNum > 0 ? 'positive' : (profitNum < 0 ? 'negative' : 'neutral');
+    document.getElementById('order-summary-cards').innerHTML = `
+      <div class="summary-card neutral">
+        <div class="label">实际收款（整单）</div>
+        <div class="val">${fmtMoney(d.totalReceived)}</div>
+        <div class="hint">一单一笔，不按型号拆</div>
+      </div>
+      <div class="summary-card neutral">
+        <div class="label">采购额（合计）</div>
+        <div class="val">${fmtMoney(d.totalPurchase)}</div>
+        <div class="hint">Σ 各型号采购额</div>
+      </div>
+      <div class="summary-card ${profitClass}">
+        <div class="label">实际总利润</div>
+        <div class="val">${fmtMoney(d.actualTotalProfit)}</div>
+        <div class="hint">实际收款 − 采购额</div>
+      </div>
     `;
     const items = d.items || [];
     const body = document.getElementById('order-item-body');
@@ -91,17 +108,17 @@
     } else {
       body.innerHTML = items.map(it => `
         <tr>
-          <td>
+          <td class="cell-strong">
             ${esc(it.model)}
             ${it.quoted === false ? '<span class="muted">（未报价）</span>' : ''}
           </td>
           <td class="num">${it.quantity ?? '—'}</td>
           <td class="num">${fmtMoney(it.purchaseAmount)}</td>
           <td class="num">${fmtMoney(it.salesAmount)}</td>
-          <td class="num">${fmtMoney(it.profit)}</td>
-          <td class="num">${fmtMoney(it.salesUsd)}</td>
-          <td class="num">${it.exchangeRate != null ? Number(it.exchangeRate).toFixed(1) : '—'}</td>
-          <td class="num">${fmtMoney(it.salesCny)}</td>
+          <td class="num money-hl">${fmtMoney(it.profit)}</td>
+          <td class="num cell-sub">${fmtMoney(it.salesUsd)}</td>
+          <td class="num cell-sub">${it.exchangeRate != null ? Number(it.exchangeRate).toFixed(1) : '—'}</td>
+          <td class="num cell-sub">${fmtMoney(it.salesCny)}</td>
           <td class="actions">
             <div class="btn-row">
               <button class="ghost" onclick="openItemForm(${it.id})">编辑</button>

@@ -64,12 +64,20 @@
       overflow: hidden;
     }
     th, td {
-      padding: 10px 12px;
+      padding: 12px 14px;
       border-bottom: 1px solid var(--line);
       font-size: 13px;
       text-align: left;
     }
-    th { background: #f3f3f0; font-weight: 500; color: var(--muted); white-space: nowrap; }
+    th {
+      background: #f3f3f0;
+      font-weight: 500;
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 12px;
+      letter-spacing: .02em;
+    }
+    td { vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tr.clickable { cursor: pointer; }
     tr.clickable:hover td { background: #f7f7f4; }
@@ -89,6 +97,28 @@
       align-items: center;
     }
     td.actions button { flex-shrink: 0; }
+    /* 行内操作：灰底弱化，删除默认安静、悬停再显红 */
+    td.actions button.ghost {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--ink);
+      background: #f0f0ec;
+      border-color: transparent;
+    }
+    td.actions button.ghost:hover { background: #e7e7e1; }
+    td.actions button.ghost.danger {
+      color: var(--muted);
+      background: transparent;
+    }
+    td.actions button.ghost.danger:hover {
+      color: var(--danger);
+      background: #fdecea;
+    }
+    /* 主文/次文层级 */
+    .cell-strong { font-weight: 600; }
+    .cell-sub { color: var(--muted); }
+    .money-hl { font-weight: 600; }
+    .num { font-variant-numeric: tabular-nums; }
     .muted { color: var(--muted); font-size: 12px; }
     .no-quote { color: #bbb; }
     .model-link {
@@ -189,6 +219,41 @@
     }
     .order-detail-meta .label { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
     .order-detail-meta .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* 金额摘要卡：实际收款 / 采购额 / 实际总利润 */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 0 0 14px;
+    }
+    .summary-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+      min-width: 0;
+    }
+    .summary-card .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .summary-card .val {
+      font-size: 22px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+    .summary-card .hint {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .summary-card.positive .val { color: #1a7f4e; }
+    .summary-card.negative .val { color: var(--danger); }
+    .summary-card.neutral .val { color: var(--ink); }
     .item-form-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
     }

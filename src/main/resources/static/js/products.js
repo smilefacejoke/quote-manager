@@ -156,8 +156,8 @@
         <td class="check" onclick="event.stopPropagation()">
           <input type="checkbox" class="row-check" data-id="${p.id}" onchange="onRowCheckChange()" />
         </td>
-        <td>${esc(p.brand)}</td>
-        <td><span class="model-link">${esc(p.model)}</span></td>
+        <td class="cell-sub">${esc(p.brand || '')}</td>
+        <td class="cell-strong"><span class="model-link">${esc(p.model)}</span></td>
         <td class="num ${hasQty ? '' : 'no-quote'}">${hasQty ? p.quantity : '—'}</td>
         <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.purchasePrice).toFixed(2) : '—'}</td>
         <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
@@ -171,7 +171,7 @@
             <button class="ghost danger" onclick="event.stopPropagation(); deleteProduct(${p.id})">删除</button>
           </div>
         </td>
-        <td class="muted">${esc(p.remark || '')}</td>
+        <td class="cell-sub">${esc(p.remark || '')}</td>
       </tr>`;
     }).join('');
   }
