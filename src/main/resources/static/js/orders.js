@@ -275,6 +275,18 @@
     else loadOrders();
   }
 
+  /** 明细 → 保存请求：必须带上 salesUsd 快照，否则整单覆盖会清掉运费等无报价行 */
+  function toSaveItem(it) {
+    const src = {
+      model: it.model,
+      quantity: it.quantity != null ? it.quantity : 1,
+    };
+    if (it.productId != null) src.productId = it.productId;
+    if (it.purchaseAmount != null) src.purchaseAmount = it.purchaseAmount;
+    if (it.salesUsd != null) src.salesUsd = it.salesUsd;
+    return src;
+  }
+
   function openOrderModal(id) {
     editingOrderId = id || null;
     document.getElementById('order-modal-title').textContent = id ? `编辑订单 #${id}` : '新增采购订单';
@@ -287,6 +299,7 @@
         model: it.model || '',
         quantity: it.quantity != null ? it.quantity : 1,
         purchaseAmount: it.purchaseAmount != null ? it.purchaseAmount : '',
+        salesUsd: it.salesUsd != null ? it.salesUsd : '',
       }));
       if (!orderFormItems.length) {
         orderFormItems = [{ model: '', quantity: 1, purchaseAmount: '' }];
@@ -397,6 +410,7 @@
           quantity: it.quantity === '' || it.quantity == null ? 1 : Number(it.quantity),
         };
         if (it.purchaseAmount !== '' && it.purchaseAmount != null) row.purchaseAmount = Number(it.purchaseAmount);
+        if (it.salesUsd !== '' && it.salesUsd != null) row.salesUsd = Number(it.salesUsd);
         return row;
       }),
     };
@@ -527,16 +541,12 @@
     };
     if (matched && matched.id != null) row.productId = matched.id;
     if (purchaseVal !== '') row.purchaseAmount = Number(purchaseVal);
+    // 编辑原行时保留销售价快照（运费行尤其重要）
+    const origRow = editingItemId ? (d.items || []).find(x => x.id === editingItemId) : null;
+    if (origRow && origRow.salesUsd != null) row.salesUsd = origRow.salesUsd;
+    else if (matched && matched.quoteUsd != null) row.salesUsd = matched.quoteUsd;
 
-    let items = (d.items || []).map(it => {
-      const src = {
-        model: it.model,
-        quantity: it.quantity != null ? it.quantity : 1,
-      };
-      if (it.productId != null) src.productId = it.productId;
-      if (it.purchaseAmount != null) src.purchaseAmount = it.purchaseAmount;
-      return src;
-    });
+    let items = (d.items || []).map(toSaveItem);
     if (editingItemId) {
       const idx = (d.items || []).findIndex(x => x.id === editingItemId);
       if (idx >= 0) items[idx] = row;
@@ -573,15 +583,7 @@
     const r = await api.get(`/api/orders/${currentOrderId}`);
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     const d = r.data;
-    const items = (d.items || []).filter(x => x.id !== itemId).map(it => {
-      const src = {
-        model: it.model,
-        quantity: it.quantity != null ? it.quantity : 1,
-      };
-      if (it.productId != null) src.productId = it.productId;
-      if (it.purchaseAmount != null) src.purchaseAmount = it.purchaseAmount;
-      return src;
-    });
+    const items = (d.items || []).filter(x => x.id !== itemId).map(toSaveItem);
     if (!items.length) { toast('至少保留一行明细；如需清空请删除订单'); return; }
     const body = {
       orderNo: d.orderNo,
