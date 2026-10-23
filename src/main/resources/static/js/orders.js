@@ -27,7 +27,7 @@
   function findProductByModelText(modelText) {
     const m = String(modelText || '').trim();
     if (!m) return null;
-    return productOptions.find(p => p.model === m) || null;
+    return productOptions.find(p => String(p.model || '').trim() === m) || null;
   }
 
   function pageOrders(delta) {

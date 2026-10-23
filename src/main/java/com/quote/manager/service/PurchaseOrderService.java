@@ -217,9 +217,9 @@ public class PurchaseOrderService {
             it.setModel(product.getModel());
             it.setQuantity(src.getQuantity() != null ? src.getQuantity() : 1);
             it.setPurchaseAmount(src.getPurchaseAmount());
-            // 发票导入可直接指定销售价USD；否则取最新报价
+            // 带销售价USD（导入表格/发票）→ 写入报价库，并用于本单计价
             if (src.getSalesUsd() != null) {
-                it.setSalesUsd(src.getSalesUsd());
+                syncQuoteFromUsd(product, src.getSalesUsd(), it.getQuantity(), rate);
                 applyPricingWithUsd(it, rate, src.getSalesUsd());
             } else {
                 applyPricing(it, rate);
@@ -235,20 +235,23 @@ public class PurchaseOrderService {
      * 3. 找不到则自动建档（无品牌），前端提示「该型号还未进行报价」。
      */
     private Product resolveProduct(PurchaseOrderSaveRequest.Item src) {
+        // 优先型号精确匹配（产品页里存在的就以库为准），productId 仅作线索
+        String model = src.getModel() != null ? src.getModel().trim() : null;
+        if (StringUtils.hasText(model)) {
+            Product byModel = findProductByModel(model);
+            if (byModel != null) {
+                return byModel;
+            }
+        }
         if (src.getProductId() != null) {
             Product p = productMapper.selectById(src.getProductId());
-            if (p == null) {
-                throw new BizException("产品不存在: " + src.getProductId());
+            if (p != null) {
+                return p;
             }
-            return p;
+            // 缓存里的 id 已失效：不直接报错，按型号建档继续，避免「产品报价页有、订单编辑却说不存在」
         }
-        String model = src.getModel() != null ? src.getModel().trim() : null;
         if (!StringUtils.hasText(model)) {
             throw new BizException("型号不能为空");
-        }
-        Product existing = findProductByModel(model);
-        if (existing != null) {
-            return existing;
         }
         Product created = new Product();
         created.setBrand(null);
@@ -303,6 +306,39 @@ public class PurchaseOrderService {
         } else {
             it.setProfit(null);
         }
+    }
+
+    /**
+     * 把销售价(USD) 同步进报价表：
+     * 无报价 → 新建（采购价先 0 占位）；有报价且 USD 变了 → 更新（采购价保留）；相同则不动。
+     */
+    private void syncQuoteFromUsd(Product product, BigDecimal salesUsd, Integer quantity, BigDecimal rate) {
+        BigDecimal usd = salesUsd.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        int qty = quantity != null ? quantity : 1;
+        Quote latest = findLatestQuote(product.getId());
+        if (latest == null) {
+            Quote q = new Quote();
+            q.setProductId(product.getId());
+            q.setPurchasePrice(BigDecimal.ZERO);
+            q.setQuotePrice(usd.multiply(rate).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+            q.setQuantity(qty);
+            q.setQuoteUsd(usd);
+            q.setQuoteTotalUsd(usd.multiply(BigDecimal.valueOf(qty)).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+            q.setQuoteTime(LocalDateTime.now());
+            q.setRemark("订单导入，采购价待补充");
+            quoteMapper.insert(q);
+            return;
+        }
+        if (latest.getQuoteUsd() != null && latest.getQuoteUsd().setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+                .compareTo(usd) == 0) {
+            return;
+        }
+        latest.setQuoteUsd(usd);
+        latest.setQuotePrice(usd.multiply(rate).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        latest.setQuantity(qty);
+        latest.setQuoteTotalUsd(usd.multiply(BigDecimal.valueOf(qty)).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        latest.setQuoteTime(LocalDateTime.now());
+        quoteMapper.updateById(latest);
     }
 
     private Quote findLatestQuote(Long productId) {
