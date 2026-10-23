@@ -4,186 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>型号报价管理系统</title>
-  <style>
-    :root {
-      --ink: #1a1a1a;
-      --muted: #666;
-      --line: #e5e5e5;
-      --bg: #fafaf8;
-      --card: #fff;
-      --danger: #c0392b;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-      line-height: 1.5;
-    }
-    header {
-      padding: 20px 28px;
-      border-bottom: 1px solid var(--line);
-      background: var(--card);
-    }
-    header h1 { margin: 0; font-size: 18px; font-weight: 600; }
-    header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-    main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 16px;
-      align-items: center;
-    }
-    input, select, textarea {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 13px;
-      background: var(--card);
-    }
-    button.primary {
-      background: var(--ink);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 16px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    button.ghost {
-      background: transparent;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 6px 12px;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    button.danger { color: var(--danger); border-color: #f0c4c0; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    th, td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--line);
-      font-size: 13px;
-      text-align: left;
-    }
-    th { background: #f3f3f0; font-weight: 500; color: var(--muted); white-space: nowrap; }
-    tr:last-child td { border-bottom: none; }
-    tr.clickable { cursor: pointer; }
-    tr.clickable:hover td { background: #f7f7f4; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
-    /* 保持 td 为 table-cell，flex 放在内层，避免行下划线错位 */
-    td.actions {
-      white-space: nowrap;
-    }
-    td.check, th.check { width: 36px; text-align: center; padding-left: 12px; padding-right: 4px; }
-    td.check input, th.check input { margin: 0; cursor: pointer; }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-
-    td.actions .btn-row {
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 6px;
-      align-items: center;
-    }
-    td.actions button { flex-shrink: 0; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .no-quote { color: #bbb; }
-    .model-link {
-      color: var(--ink);
-      font-weight: 500;
-      text-decoration: underline;
-      text-decoration-color: #ccc;
-      text-underline-offset: 3px;
-      cursor: pointer;
-    }
-    .model-link:hover { text-decoration-color: var(--ink); }
-    .modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.35);
-      align-items: center;
-      justify-content: center;
-      z-index: 10;
-    }
-    .modal-backdrop.open { display: flex; }
-    .modal {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 20px;
-      width: min(560px, 92vw);
-      max-height: 86vh;
-      overflow: auto;
-      border: 1px solid var(--line);
-    }
-    /* 历史报价列多，给到更宽一档，避免时间/金额挤到换行 */
-    #history-modal .modal { width: min(980px, 96vw); }
-    #export-modal .modal { width: min(860px, 96vw); }
-    .export-total-row td { font-weight: 600; background: #f7f7f4; border-top: 1px solid var(--line); }
-    .nowrap { white-space: nowrap; }
-    .modal h3 { margin: 0 0 4px; font-size: 16px; }
-    .modal .sub { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
-    .field { margin-bottom: 12px; }
-    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-    .field input, .field select, .field textarea { width: 100%; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
-      margin: 8px 0 4px;
-    }
-    .history-table th, .history-table td {
-      padding: 8px 10px;
-      font-size: 12px;
-      border-bottom: 1px solid var(--line);
-    }
-    .history-table th { background: #f3f3f0; color: var(--muted); font-weight: 500; }
-    .history-table tr:last-child td { border-bottom: none; }
-    .latest-tag {
-      display: inline-block;
-      background: var(--ink);
-      color: #fff;
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 4px;
-      margin-left: 4px;
-      vertical-align: middle;
-    }
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: var(--ink);
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .2s;
-    }
-    .toast.show { opacity: 1; }
-    .empty { padding: 32px; text-align: center; color: var(--muted); }
-  </style>
+  <link rel="stylesheet" href="css/app.css?v=20261023e" />
 </head>
 <body>
 <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
   <div>
     <h1>型号报价管理系统</h1>
     <p>列表显示最新报价 · 点击型号查看历史报价</p>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" id="nav-products" onclick="showView('products')">产品报价</button>
+      <button class="nav-tab" id="nav-orders" onclick="showView('orders')">采购订单</button>
+    </nav>
   </div>
   <div style="text-align:right">
     <div class="muted" style="font-size:11px">今日美元汇率</div>
@@ -193,6 +24,8 @@
 </header>
 
 <main>
+  <!-- 产品报价 -->
+  <div id="view-products">
   <div class="toolbar">
     <select id="q-brand" style="width:150px">
       <option value="">全部品牌</option>
@@ -235,6 +68,74 @@
     <span class="muted" id="product-page-info">第 1 页</span>
     <button class="ghost" onclick="pageProducts(1)">下一页</button>
   </div>
+  </div><!-- /view-products -->
+
+  <!-- 采购订单列表 -->
+  <div id="view-orders" style="display:none">
+    <div class="toolbar">
+      <input id="q-order-no" placeholder="订单号" style="width:150px" />
+      <input id="q-customer" placeholder="客户名称" style="width:150px" />
+      <button class="ghost" onclick="loadOrders()">查询</button>
+      <button class="ghost" onclick="document.getElementById('invoice-file').click()">导入发票</button>
+      <input type="file" id="invoice-file" accept=".xlsx,.xls" style="display:none"
+             onchange="importInvoice(this)" />
+      <button class="primary" onclick="openOrderModal()">+ 新增订单</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>订单号</th>
+          <th>客户名称</th>
+          <th>下订时间</th>
+          <th class="num">预计收款</th>
+          <th class="num">实际收款额</th>
+          <th class="num">采购额</th>
+          <th class="num">实际总利润</th>
+          <th style="width:150px">操作</th>
+        </tr>
+      </thead>
+      <tbody id="order-body"></tbody>
+    </table>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="ghost" onclick="pageOrders(-1)">上一页</button>
+      <span class="muted" id="order-page-info">第 1 页</span>
+      <button class="ghost" onclick="pageOrders(1)">下一页</button>
+    </div>
+  </div>
+
+  <!-- 订单详情（二级页） -->
+  <div id="view-order-detail" style="display:none">
+    <div class="toolbar">
+      <button class="ghost" onclick="showView('orders')">← 返回订单列表</button>
+      <span class="muted" id="order-detail-title"></span>
+      <span style="flex:1"></span>
+      <button class="ghost" onclick="openOrderModal(currentOrderId)">编辑订单</button>
+      <button class="ghost danger" onclick="deleteOrder(currentOrderId)">删除订单</button>
+      <button class="primary" onclick="openItemForm()">+ 添加型号</button>
+    </div>
+    <div class="order-detail-meta" id="order-detail-meta"></div>
+    <div class="summary-cards" id="order-summary-cards"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>型号</th>
+          <th class="num">数量</th>
+          <th class="num">采购额</th>
+          <th class="num">销售额</th>
+          <th class="num">利润</th>
+          <th class="num">销售价（美元）</th>
+          <th class="num">汇率</th>
+          <th class="num">销售价（人民币）</th>
+          <th style="width:110px">操作</th>
+        </tr>
+      </thead>
+      <tbody id="order-item-body"></tbody>
+    </table>
+    <div class="toolbar" style="margin-top:12px">
+      <span class="muted">合计</span>
+      <span class="muted" id="order-detail-totals"></span>
+    </div>
+  </div>
 </main>
 
 <!-- 产品编辑弹窗 -->
@@ -271,14 +172,14 @@
           <th>总额(USD)</th>
           <th>报价时间</th>
           <th>备注</th>
-          <th style="width:70px"></th>
+          <th style="width:110px"></th>
         </tr>
       </thead>
       <tbody id="history-body"></tbody>
     </table>
     <div class="modal-actions">
       <button class="ghost" onclick="closeModal('history-modal')">关闭</button>
-      <button class="primary" onclick="openQuoteForm()">+ 录入新报价</button>
+      <button class="primary" id="history-add-btn" onclick="openQuoteForm()">+ 录入新报价</button>
     </div>
   </div>
 </div>
@@ -325,443 +226,55 @@
   </div>
 </div>
 
+<!-- 采购订单 新增/编辑弹窗 -->
+<div class="modal-backdrop" id="order-modal">
+  <div class="modal">
+    <h3 id="order-modal-title">新增采购订单</h3>
+    <p class="sub">订单号手填；明细里的销售价/汇率按当前报价与当日汇率自动计算并快照</p>
+    <div class="field"><label>订单号 *</label><input id="o-order-no" /></div>
+    <div class="field"><label>客户名称 *</label><input id="o-customer" /></div>
+    <div class="field"><label>下订时间</label><input id="o-order-time" type="datetime-local" /></div>
+    <div class="field"><label>实际收款（整单）</label><input id="o-received" type="number" step="0.01" /></div>
+    <div class="field">
+      <label>型号明细 *</label>
+      <div id="order-item-editor"></div>
+      <button class="ghost" type="button" onclick="addOrderItemRow()" style="margin-top:6px">+ 添加一行</button>
+    </div>
+    <div class="calc-preview" id="order-form-preview"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('order-modal')">取消</button>
+      <button class="primary" onclick="saveOrder()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 订单明细 录入/编辑弹窗 -->
+<div class="modal-backdrop" id="item-modal">
+  <div class="modal">
+    <h3 id="item-modal-title">添加型号</h3>
+    <p class="sub">销售价（美元）取该型号最新报价的报价 USD；汇率取当日业务汇率</p>
+    <div class="field">
+      <label>型号 *（输入搜索；库内无此型号会自动建档）</label>
+      <input id="it-model" list="model-options" placeholder="输入型号后回车或直接保存" autocomplete="off" />
+      <datalist id="model-options"></datalist>
+    </div>
+    <div class="item-form-grid">
+      <div class="field"><label>数量</label><input id="it-quantity" type="number" min="1" step="1" value="1" /></div>
+      <div class="field"><label>采购额</label><input id="it-purchase" type="number" step="0.01" /></div>
+    </div>
+    <div class="calc-preview" id="item-calc-preview"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('item-modal')">取消</button>
+      <button class="primary" onclick="saveOrderItem()">保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script>
-  const api = {
-    async get(url) {
-      return (await fetch(url)).json();
-    },
-    async send(url, method, body) {
-      return (await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      })).json();
-    }
-  };
-
-  let productPage = 1;
-  let productPageSize = 50;
-  let editingProductId = null;
-  let currentProductId = null;
-  let currentProductLabel = '';
-  let editingQuoteId = null;
-  const productCache = {};
-  /** 勾选中的产品 id（跨分页保留，翻页/查询后清空） */
-  const selectedProductIds = new Set();
-
-  function toast(msg) {
-    const el = document.getElementById('toast');
-    el.textContent = (msg == null || msg === '') ? '操作失败，请重试' : String(msg);
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2200);
-  }
-
-  /** 加载品牌下拉选项（保留当前选中值） */
-  async function loadBrands() {
-    const select = document.getElementById('q-brand');
-    const current = select.value;
-    const r = await api.get('/api/products/brands');
-    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
-    const brands = r.data || [];
-    select.innerHTML = '<option value="">全部品牌</option>'
-      + brands.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
-    if (current && brands.includes(current)) {
-      select.value = current;
-    }
-  }
-
-  function pageProducts(delta) {
-    const next = productPage + delta;
-    if (next < 1) return;
-    productPage = next;
-    loadProducts();
-  }
-
-  /** 切换每页行数：回到第 1 页后重载，避免落在空白页 */
-  function changePageSize() {
-    productPageSize = Number(document.getElementById('page-size').value);
-    productPage = 1;
-    loadProducts();
-  }
-
-  /** 批量导入 Excel：一行=型号+报价，时间取导入时刻 */
-  async function importExcel(input) {
-    const file = input.files[0];
-    input.value = '';
-    if (!file) return;
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const res = await fetch('/api/products/import', { method: 'POST', body: form });
-      const r = await res.json();
-      if (r.code !== 0) {
-        toast(r.message || '导入失败');
-        return;
-      }
-      const d = r.data || {};
-      let msg = `导入完成：新建产品 ${d.productsCreated ?? 0}，匹配已有 ${d.productsMatched ?? 0}，新增报价 ${d.quotesCreated ?? 0}`;
-      if (d.errors && d.errors.length) {
-        msg += `；${d.errors.length} 行有问题`;
-        console.warn('导入行错误', d.errors);
-      }
-      toast(msg);
-      loadBrands();
-      loadProducts();
-    } catch (e) {
-      toast('导入失败：' + (e && e.message ? e.message : '未知错误'));
-    }
-  }
-
-  /** 打开批量导出预览：展示勾选产品的最新报价与总金额 */
-  function openExportPreview() {
-    const ids = [...selectedProductIds];
-    if (!ids.length) { toast('请先勾选要导出的产品'); return; }
-    // 与导出顺序一致：id 倒序
-    ids.sort((a, b) => b - a);
-    const body = document.getElementById('export-body');
-    let total = 0;
-    const rowsHtml = ids.map(id => {
-      const p = productCache[id];
-      if (!p) return '';
-      const hasQuote = p.purchasePrice != null;
-      const t = p.quoteTotalUsd != null ? Number(p.quoteTotalUsd) : null;
-      if (t != null) total += t;
-      return `
-        <tr>
-          <td>${esc(p.brand || '')}</td>
-          <td>${esc(p.model)}</td>
-          <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.purchasePrice).toFixed(2) : '—'}</td>
-          <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
-          <td class="num ${p.quoteUsd != null ? '' : 'no-quote'}">${p.quoteUsd != null ? Number(p.quoteUsd).toFixed(2) : '—'}</td>
-          <td class="num ${t != null ? '' : 'no-quote'}">${t != null ? t.toFixed(2) : '—'}</td>
-        </tr>`;
-    }).join('');
-    body.innerHTML = rowsHtml + `
-      <tr class="export-total-row">
-        <td colspan="5">总金额（USD）</td>
-        <td class="num">${total.toFixed(2)}</td>
-      </tr>`;
-    document.getElementById('export-modal').classList.add('open');
-  }
-
-  /** 确认后请求后端生成 xlsx 并触发浏览器下载 */
-  async function confirmExportExcel() {
-    const ids = [...selectedProductIds];
-    if (!ids.length) { toast('请先勾选要导出的产品'); return; }
-    const resp = await fetch('/api/products/export-excel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ids),
-    });
-    const ctype = resp.headers.get('content-type') || '';
-    if (!resp.ok || ctype.includes('application/json')) {
-      let msg = '导出失败';
-      try {
-        const j = await resp.json();
-        msg = j.message || msg;
-      } catch (_) { /* 非 JSON 错误体 */ }
-      toast(msg);
-      return;
-    }
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `产品报价_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    closeModal('export-modal');
-    toast('已导出 Excel');
-  }
-
-  async function loadProducts() {
-    const brand = document.getElementById('q-brand').value.trim();
-    const model = document.getElementById('q-model').value.trim();
-    let url = `/api/products?pageNo=${productPage}&pageSize=${productPageSize}`;
-    if (brand) url += `&brand=${encodeURIComponent(brand)}`;
-    if (model) url += `&model=${encodeURIComponent(model)}`;
-    const r = await api.get(url);
-    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
-    const page = r.data;
-    const rows = page.records || [];
-    // 换页/查询后清空勾选，避免删到看不见的行
-    selectedProductIds.clear();
-    document.getElementById('check-all').checked = false;
-    updateBatchDeleteBtn();
-    document.getElementById('product-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
-    const body = document.getElementById('product-body');
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="11" class="empty">暂无数据</td></tr>';
-      return;
-    }
-    rows.forEach(p => { productCache[p.id] = p; });
-    body.innerHTML = rows.map(p => {
-      const hasQuote = p.purchasePrice != null;
-      const hasQty = p.quantity != null;
-      return `
-      <tr class="clickable" onclick="openHistory(${p.id})">
-        <td class="check" onclick="event.stopPropagation()">
-          <input type="checkbox" class="row-check" data-id="${p.id}" onchange="onRowCheckChange()" />
-        </td>
-        <td>${esc(p.brand)}</td>
-        <td><span class="model-link">${esc(p.model)}</span></td>
-        <td class="num ${hasQty ? '' : 'no-quote'}">${hasQty ? p.quantity : '—'}</td>
-        <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.purchasePrice).toFixed(2) : '—'}</td>
-        <td class="num ${hasQuote ? '' : 'no-quote'}">${hasQuote ? Number(p.quotePrice).toFixed(2) : '—'}</td>
-        <td class="num ${p.quoteUsd != null ? '' : 'no-quote'}">${p.quoteUsd != null ? Number(p.quoteUsd).toFixed(2) : '—'}</td>
-        <td class="num ${p.quoteTotalUsd != null ? '' : 'no-quote'}">${p.quoteTotalUsd != null ? Number(p.quoteTotalUsd).toFixed(2) : '—'}</td>
-        <td class="muted nowrap">${hasQuote ? fmtTime(p.quoteTime) : '暂无报价'}</td>
-        <td class="actions">
-          <div class="btn-row">
-            <button class="ghost" onclick="event.stopPropagation(); openHistory(${p.id})">报价</button>
-            <button class="ghost" onclick="event.stopPropagation(); editProduct(${p.id})">编辑</button>
-            <button class="ghost danger" onclick="event.stopPropagation(); deleteProduct(${p.id})">删除</button>
-          </div>
-        </td>
-        <td class="muted">${esc(p.remark || '')}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  function openProductModal() {
-    editingProductId = null;
-    document.getElementById('product-modal-title').textContent = '新增产品';
-    document.getElementById('product-modal-sub').textContent =
-      '价格为可选：填写则顺带记录第一条报价；后续可在「报价」里追加';
-    document.getElementById('p-brand').value = '';
-    document.getElementById('p-model').value = '';
-    document.getElementById('p-remark').value = '';
-    document.getElementById('p-purchase-price').value = '';
-    document.getElementById('p-quote-price').value = '';
-    document.getElementById('p-quantity').value = '';
-    document.getElementById('p-quote-time').value = nowForDateTimeLocal();
-    document.getElementById('product-modal').classList.add('open');
-  }
-
-  function editProduct(id) {
-    const p = productCache[id];
-    if (!p) { toast('数据未加载'); return; }
-    editingProductId = id;
-    document.getElementById('product-modal-title').textContent = `编辑产品 #${id}`;
-    document.getElementById('product-modal-sub').textContent =
-      '已带入最新报价；保存后直接更新该条报价（不会新增历史），时间记为当前';
-    document.getElementById('p-brand').value = p.brand || '';
-    document.getElementById('p-model').value = p.model || '';
-    document.getElementById('p-remark').value = p.remark || '';
-    // 预填最新报价，避免只改数量时价格被清空
-    document.getElementById('p-purchase-price').value =
-      p.purchasePrice != null ? p.purchasePrice : '';
-    document.getElementById('p-quote-price').value =
-      p.quotePrice != null ? p.quotePrice : '';
-    document.getElementById('p-quantity').value =
-      p.quantity != null ? p.quantity : '';
-    // 编辑时刻即本次报价时间
-    document.getElementById('p-quote-time').value = nowForDateTimeLocal();
-    document.getElementById('product-modal').classList.add('open');
-  }
-
-  async function saveProduct() {
-    const body = {
-      brand: document.getElementById('p-brand').value,
-      model: document.getElementById('p-model').value,
-      remark: document.getElementById('p-remark').value,
-    };
-    const purchaseVal = document.getElementById('p-purchase-price').value;
-    const quoteVal = document.getElementById('p-quote-price').value;
-    const qtyVal = document.getElementById('p-quantity').value;
-    const timeVal = document.getElementById('p-quote-time').value;
-    if (purchaseVal !== '') body.purchasePrice = Number(purchaseVal);
-    if (quoteVal !== '') body.quotePrice = Number(quoteVal);
-    if (qtyVal !== '') body.quantity = Number(qtyVal);
-    if (timeVal) body.quoteTime = timeVal + ':00';
-    const r = editingProductId
-      ? await api.send(`/api/products/${editingProductId}`, 'PUT', body)
-      : await api.send('/api/products', 'POST', body);
-    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
-    closeModal('product-modal');
-    toast(editingProductId ? '产品与最新报价已更新' : '产品已创建');
-    loadBrands();
-    loadProducts();
-  }
-
-  async function deleteProduct(id) {
-    const p = productCache[id];
-    const label = p ? `${p.brand} ${p.model}` : `#${id}`;
-    if (!confirm(`确认删除「${label}」？\n它的全部历史报价会一并删除，且不可恢复。`)) return;
-    const r = await api.send(`/api/products/${id}`, 'DELETE');
-    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
-    selectedProductIds.delete(id);
-    updateBatchDeleteBtn();
-    toast('已删除');
-    loadProducts();
-  }
-
-  /** 表头全选/取消全选本页 */
-  function toggleCheckAll(el) {
-    document.querySelectorAll('.row-check').forEach(c => {
-      c.checked = el.checked;
-      const id = Number(c.dataset.id);
-      if (el.checked) selectedProductIds.add(id);
-      else selectedProductIds.delete(id);
-    });
-    updateBatchDeleteBtn();
-  }
-
-  /** 单行勾选变化：同步 selectedProductIds 与表头状态 */
-  function onRowCheckChange() {
-    selectedProductIds.clear();
-    document.querySelectorAll('.row-check:checked').forEach(c => {
-      selectedProductIds.add(Number(c.dataset.id));
-    });
-    const all = document.querySelectorAll('.row-check');
-    const checked = document.querySelectorAll('.row-check:checked');
-    const checkAll = document.getElementById('check-all');
-    checkAll.checked = all.length > 0 && all.length === checked.length;
-    checkAll.indeterminate = checked.length > 0 && checked.length < all.length;
-    updateBatchDeleteBtn();
-  }
-
-  function updateBatchDeleteBtn() {
-    const btn = document.getElementById('batch-delete-btn');
-    const n = selectedProductIds.size;
-    btn.textContent = n > 0 ? `批量删除 (${n})` : '批量删除';
-    btn.disabled = n === 0;
-  }
-
-  /** 批量删除勾选的产品：各自历史报价一并删除 */
-  async function deleteSelectedProducts() {
-    const ids = [...selectedProductIds];
-    if (!ids.length) { toast('请先勾选要删除的产品'); return; }
-    const preview = ids.slice(0, 5).map(id => {
-      const p = productCache[id];
-      return p ? `· ${p.brand || '(无品牌)'} / ${p.model}` : `· #${id}`;
-    }).join('\n');
-    const more = ids.length > 5 ? `\n… 等共 ${ids.length} 个产品` : '';
-    if (!confirm(`确认删除以下 ${ids.length} 个产品？\n${preview}${more}\n它们的全部历史报价会一并删除，且不可恢复。`)) return;
-    const r = await api.send('/api/products/batch-delete', 'POST', ids);
-    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
-    const deleted = r.data && r.data.deleted != null ? r.data.deleted : ids.length;
-    selectedProductIds.clear();
-    toast(`已删除 ${deleted} 个产品`);
-    loadBrands();
-    loadProducts();
-  }
-
-  async function openHistory(productId) {
-    const p = productCache[productId];
-    currentProductId = productId;
-    currentProductLabel = p ? `${p.brand} / ${p.model}` : `产品 #${productId}`;
-    document.getElementById('history-title').textContent = '历史报价';
-    document.getElementById('history-sub').textContent = currentProductLabel;
-    document.getElementById('history-body').innerHTML = '<tr><td colspan="8" class="empty">加载中…</td></tr>';
-    document.getElementById('history-modal').classList.add('open');
-
-    const r = await api.get(`/api/quotes?pageNo=1&pageSize=100&productId=${productId}`);
-    if (r.code !== 0) {
-      document.getElementById('history-body').innerHTML = `<tr><td colspan="8" class="empty">${esc(r.message)}</td></tr>`;
-      return;
-    }
-    const rows = r.data.records || [];
-    if (!rows.length) {
-      document.getElementById('history-body').innerHTML = '<tr><td colspan="8" class="empty">暂无报价，点击下方「录入新报价」</td></tr>';
-      return;
-    }
-    // 已按报价时间倒序（服务端），第一条为最新
-    document.getElementById('history-body').innerHTML = rows.map((q, idx) => `
-      <tr>
-        <td class="num">${Number(q.purchasePrice).toFixed(2)}</td>
-        <td class="num">${Number(q.quotePrice).toFixed(2)}</td>
-        <td class="num">${q.quantity != null ? q.quantity : '—'}</td>
-        <td class="num">${q.quoteUsd != null ? Number(q.quoteUsd).toFixed(2) : '—'}</td>
-        <td class="num">${q.quoteTotalUsd != null ? Number(q.quoteTotalUsd).toFixed(2) : '—'}</td>
-        <td class="muted nowrap">${fmtTime(q.quoteTime)}${idx === 0 ? '<span class="latest-tag">最新</span>' : ''}</td>
-        <td>${esc(q.remark || '')}</td>
-        <td>
-          <button class="ghost danger" onclick="deleteQuote(${q.id})">删除</button>
-        </td>
-      </tr>`).join('');
-  }
-
-  function openQuoteForm() {
-    editingQuoteId = null;
-    document.getElementById('quote-modal-title').textContent = '录入报价';
-    document.getElementById('quote-sub').textContent = currentProductLabel;
-    document.getElementById('f-purchase-price').value = '';
-    document.getElementById('f-quote-price').value = '';
-    document.getElementById('f-quantity').value = '';
-    // 默认报价时间为打开弹窗的当前时刻，格式适配 datetime-local
-    document.getElementById('f-quote-time').value = nowForDateTimeLocal();
-    document.getElementById('f-remark').value = '';
-    document.getElementById('quote-modal').classList.add('open');
-  }
-
-  function nowForDateTimeLocal() {
-    const d = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  async function saveQuote() {
-    const timeVal = document.getElementById('f-quote-time').value;
-    const qtyVal = document.getElementById('f-quantity').value;
-    const body = {
-      productId: currentProductId,
-      purchasePrice: Number(document.getElementById('f-purchase-price').value),
-      quotePrice: Number(document.getElementById('f-quote-price').value),
-      quantity: qtyVal === '' ? null : Number(qtyVal),
-      quoteTime: timeVal ? timeVal + ':00' : null,
-      remark: document.getElementById('f-remark').value,
-    };
-    const r = await api.send('/api/quotes', 'POST', body);
-    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
-    closeModal('quote-modal');
-    toast('报价已保存');
-    openHistory(currentProductId);
-    loadProducts();
-  }
-
-  async function deleteQuote(id) {
-    if (!confirm(`确认删除报价记录 #${id}？`)) return;
-    const r = await api.send(`/api/quotes/${id}`, 'DELETE');
-    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
-    toast('已删除');
-    openHistory(currentProductId);
-    loadProducts();
-  }
-
-  function closeModal(id) {
-    document.getElementById(id).classList.remove('open');
-  }
-
-  function esc(s) {
-    return String(s ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
-
-  function fmtTime(t) {
-    return t ? String(t).replace('T', ' ').slice(0, 19) : '';
-  }
-
-  async function loadTodayRate() {
-    const r = await api.get('/api/rates/today');
-    if (r.code !== 0) {
-      document.getElementById('today-rate').textContent = '获取失败';
-      return;
-    }
-    // 加粗：业务汇率 1 位小数；灰色小字：精确汇率 3 位小数
-    const used = Number(r.data.rateUsed).toFixed(1);
-    const precise = Number(r.data.rateDisplay).toFixed(3);
-    document.getElementById('today-rate').textContent = used + ' CNY';
-    document.getElementById('today-rate-detail').textContent = precise;
-  }
-
-  loadTodayRate();
-  loadBrands().then(loadProducts);
-</script>
+<script src="js/common.js?v=20261023e"></script>
+<script src="js/products.js?v=20261023e"></script>
+<script src="js/orders.js?v=20261023e"></script>
+<script src="js/init.js?v=20261023e"></script>
 </body>
 </html>
