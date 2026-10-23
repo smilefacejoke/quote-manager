@@ -204,6 +204,14 @@ public class PurchaseOrderService {
         }
     }
 
+    /** 运费/物流费用行：只进订单，不建档、不写报价库 */
+    public static boolean isFreightLine(String modelOrName) {
+        if (modelOrName == null) return false;
+        String s = modelOrName.trim().toLowerCase(java.util.Locale.ROOT);
+        return s.equals("运费") || s.equals("shipping cost") || s.equals("shipping")
+                || s.equals("freight") || s.equals("shipping fee") || s.contains("运费");
+    }
+
     private void insertItems(Long orderId, List<PurchaseOrderSaveRequest.Item> items) {
         if (items == null || items.isEmpty()) {
             throw new BizException("至少填写一行型号明细");
@@ -212,6 +220,23 @@ public class PurchaseOrderService {
         for (PurchaseOrderSaveRequest.Item src : items) {
             PurchaseOrderItem it = new PurchaseOrderItem();
             it.setOrderId(orderId);
+            String modelText = src.getModel() != null ? src.getModel().trim() : null;
+
+            // 运费：只保存在订单明细，不进产品/报价库
+            if (isFreightLine(modelText) || isFreightLine(productModelIfAny(src))) {
+                it.setProductId(null);
+                it.setModel(modelText != null ? modelText : "运费");
+                it.setQuantity(src.getQuantity() != null ? src.getQuantity() : 1);
+                it.setPurchaseAmount(src.getPurchaseAmount());
+                if (src.getSalesUsd() != null) {
+                    applyPricingWithUsd(it, rate, src.getSalesUsd());
+                } else {
+                    applyPricing(it, rate);
+                }
+                itemMapper.insert(it);
+                continue;
+            }
+
             Product product = resolveProduct(src);
             it.setProductId(product.getId());
             it.setModel(product.getModel());
@@ -235,6 +260,12 @@ public class PurchaseOrderService {
      * 2. 否则按型号精确查找；
      * 3. 找不到则自动建档（无品牌），前端提示「该型号还未进行报价」。
      */
+    private String productModelIfAny(PurchaseOrderSaveRequest.Item src) {
+        if (src.getProductId() == null) return null;
+        Product p = productMapper.selectById(src.getProductId());
+        return p != null ? p.getModel() : null;
+    }
+
     private Product resolveProduct(PurchaseOrderSaveRequest.Item src) {
         // 优先型号精确匹配（产品页里存在的就以库为准），productId 仅作线索
         String model = src.getModel() != null ? src.getModel().trim() : null;

@@ -117,7 +117,10 @@ public class InvoiceImportService {
         BigDecimal rate = exchangeRateService.getTodayUsedRate();
         List<PurchaseOrderSaveRequest.Item> orderItems = new ArrayList<>();
         for (ItemLine line : items) {
-            syncProductAndQuote(line, rate, result);
+            // 运费（Shipping cost 等）只进订单，不写产品/报价库
+            if (!PurchaseOrderService.isFreightLine(line.model)) {
+                syncProductAndQuote(line, rate, result);
+            }
             PurchaseOrderSaveRequest.Item it = new PurchaseOrderSaveRequest.Item();
             it.setModel(line.model);
             it.setQuantity(line.qty);
