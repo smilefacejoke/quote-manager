@@ -219,7 +219,8 @@ public class PurchaseOrderService {
             it.setPurchaseAmount(src.getPurchaseAmount());
             // 带销售价USD（导入表格/发票）→ 写入报价库，并用于本单计价
             if (src.getSalesUsd() != null) {
-                syncQuoteFromUsd(product, src.getSalesUsd(), it.getQuantity(), rate);
+                syncQuoteFromUsd(product, src.getSalesUsd(), it.getQuantity(),
+                        src.getPurchaseAmount(), rate);
                 applyPricingWithUsd(it, rate, src.getSalesUsd());
             } else {
                 applyPricing(it, rate);
@@ -309,36 +310,54 @@ public class PurchaseOrderService {
     }
 
     /**
-     * 把销售价(USD) 同步进报价表：
-     * 无报价 → 新建（采购价先 0 占位）；有报价且 USD 变了 → 更新（采购价保留）；相同则不动。
+     * 把销售价(USD) 同步进报价表；采购额非空时再写采购价 = 采购额 ÷ 数量。
+     * 采购额为空 → 不改采购价（新建报价仍用 0 占位）。
      */
-    private void syncQuoteFromUsd(Product product, BigDecimal salesUsd, Integer quantity, BigDecimal rate) {
+    private void syncQuoteFromUsd(Product product, BigDecimal salesUsd, Integer quantity,
+                                  BigDecimal purchaseAmount, BigDecimal rate) {
         BigDecimal usd = salesUsd.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        int qty = quantity != null ? quantity : 1;
+        int qty = quantity != null && quantity > 0 ? quantity : 1;
+        BigDecimal unitPurchase = unitPurchasePrice(purchaseAmount, qty);
+
         Quote latest = findLatestQuote(product.getId());
         if (latest == null) {
             Quote q = new Quote();
             q.setProductId(product.getId());
-            q.setPurchasePrice(BigDecimal.ZERO);
+            q.setPurchasePrice(unitPurchase != null ? unitPurchase : BigDecimal.ZERO);
             q.setQuotePrice(usd.multiply(rate).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
             q.setQuantity(qty);
             q.setQuoteUsd(usd);
             q.setQuoteTotalUsd(usd.multiply(BigDecimal.valueOf(qty)).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
             q.setQuoteTime(LocalDateTime.now());
-            q.setRemark("订单导入，采购价待补充");
+            q.setRemark(unitPurchase != null ? "订单导入" : "订单导入，采购价待补充");
             quoteMapper.insert(q);
             return;
         }
-        if (latest.getQuoteUsd() != null && latest.getQuoteUsd().setScale(MONEY_SCALE, RoundingMode.HALF_UP)
-                .compareTo(usd) == 0) {
+        boolean usdSame = latest.getQuoteUsd() != null
+                && latest.getQuoteUsd().setScale(MONEY_SCALE, RoundingMode.HALF_UP).compareTo(usd) == 0;
+        // USD 相同且采购额为空 → 不动
+        if (usdSame && unitPurchase == null) {
             return;
         }
-        latest.setQuoteUsd(usd);
-        latest.setQuotePrice(usd.multiply(rate).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        latest.setQuantity(qty);
-        latest.setQuoteTotalUsd(usd.multiply(BigDecimal.valueOf(qty)).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        if (!usdSame) {
+            latest.setQuoteUsd(usd);
+            latest.setQuotePrice(usd.multiply(rate).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+            latest.setQuantity(qty);
+            latest.setQuoteTotalUsd(usd.multiply(BigDecimal.valueOf(qty)).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        }
+        if (unitPurchase != null) {
+            latest.setPurchasePrice(unitPurchase);
+        }
         latest.setQuoteTime(LocalDateTime.now());
         quoteMapper.updateById(latest);
+    }
+
+    /** 采购价 = 采购额 ÷ 数量；采购额为空返回 null（表示不改采购价） */
+    private BigDecimal unitPurchasePrice(BigDecimal purchaseAmount, int qty) {
+        if (purchaseAmount == null) {
+            return null;
+        }
+        return purchaseAmount.divide(BigDecimal.valueOf(qty), MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
     private Quote findLatestQuote(Long productId) {
