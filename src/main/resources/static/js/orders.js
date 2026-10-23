@@ -195,6 +195,86 @@
     }
   }
 
+
+  /** 导入表格预览：解析但不落库 */
+  let tableImportItems = [];
+
+  async function importTable(input) {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    const resp = await fetch('/api/orders/import-table/preview', {
+      method: 'POST',
+      body: form,
+    });
+    let r;
+    try {
+      r = await resp.json();
+    } catch (_) {
+      toast('解析失败，文件无法识别');
+      return;
+    }
+    if (r.code !== 0) {
+      toast(r.message || '解析失败');
+      return;
+    }
+    const d = r.data || {};
+    tableImportItems = d.items || [];
+    document.getElementById('ti-customer').value = '';
+    document.getElementById('ti-summary').textContent =
+      `共 ${tableImportItems.length} 行 · 预计收款 ${fmtMoney(d.expectedReceipt)} · 采购额 ${fmtMoney(d.totalPurchase)} · 订单号将自动生成（${d.suggestedOrderNo || ''}）`;
+    const body = document.getElementById('ti-body');
+    if (!tableImportItems.length) {
+      body.innerHTML = '<tr><td colspan="4" class="empty">无明细</td></tr>';
+    } else {
+      body.innerHTML = tableImportItems.map(it => `
+        <tr>
+          <td class="cell-strong">${esc(it.model)}</td>
+          <td class="num">${it.quantity ?? '—'}</td>
+          <td class="num">${fmtMoney(it.purchaseAmount)}</td>
+          <td class="num">${fmtMoney(it.salesUsd)}</td>
+        </tr>`).join('');
+    }
+    document.getElementById('table-import-modal').classList.add('open');
+  }
+
+  /** 确认入库：客户名必填 */
+  async function commitTableImport() {
+    const customerName = document.getElementById('ti-customer').value.trim();
+    if (!customerName) {
+      toast('请填写客户名称后再导入');
+      document.getElementById('ti-customer').focus();
+      return;
+    }
+    if (!tableImportItems.length) {
+      toast('没有可导入的明细');
+      return;
+    }
+    const body = {
+      customerName,
+      items: tableImportItems.map(it => ({
+        model: it.model,
+        quantity: it.quantity != null ? it.quantity : 1,
+        purchaseAmount: it.purchaseAmount != null ? it.purchaseAmount : null,
+        salesUsd: it.salesUsd != null ? it.salesUsd : null,
+      })),
+    };
+    const r = await api.send('/api/orders/import-table/commit', 'POST', body);
+    if (r.code !== 0) {
+      toast(r.message || '导入失败');
+      return;
+    }
+    closeModal('table-import-modal');
+    toast(`已导入订单 ${r.data && r.data.orderNo ? r.data.orderNo : ''}`);
+    tableImportItems = [];
+    orderPage = 1;
+    loadOrders();
+    if (r.data && r.data.id) openOrderDetail(r.data.id);
+    else loadOrders();
+  }
+
   function openOrderModal(id) {
     editingOrderId = id || null;
     document.getElementById('order-modal-title').textContent = id ? `编辑订单 #${id}` : '新增采购订单';

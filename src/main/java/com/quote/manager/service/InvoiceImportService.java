@@ -101,7 +101,7 @@ public class InvoiceImportService {
         }
         // 无 Your PO# 时按「当日日期 + 当日第几单」自动生成，如 20261023001
         if (!StringUtils.hasText(orderNo)) {
-            orderNo = generateOrderNo();
+            orderNo = purchaseOrderService.generateOrderNo();
         }
         if (items.isEmpty()) {
             throw new BizException("发票里没有明细行（Part Number / Price / Qty）");
@@ -198,26 +198,6 @@ public class InvoiceImportService {
         q.setQuoteTime(LocalDateTime.now());
         q.setRemark("发票导入，采购价待补充");
         quoteMapper.insert(q);
-    }
-
-    /** 订单号：当日日期 yyyyMMdd + 当日已添加订单数+1（三位），如 20261023001 */
-    private String generateOrderNo() {
-        LocalDate today = LocalDate.now();
-        LocalDateTime dayStart = today.atStartOfDay();
-        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
-        long todayCount = orderMapper.selectCount(new LambdaQueryWrapper<PurchaseOrder>()
-                .ge(PurchaseOrder::getCreatedAt, dayStart)
-                .lt(PurchaseOrder::getCreatedAt, dayEnd));
-        String prefix = today.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        // 兜底：按前缀再查一遍，避免 createdAt 边界或手动改号导致重复
-        String base;
-        int seq = (int) todayCount + 1;
-        do {
-            base = prefix + String.format("%03d", seq);
-            seq++;
-        } while (orderMapper.selectCount(new LambdaQueryWrapper<PurchaseOrder>()
-                .eq(PurchaseOrder::getOrderNo, base)) > 0);
-        return base;
     }
 
     private Product findProductByModel(String model) {

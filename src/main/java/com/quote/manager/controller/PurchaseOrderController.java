@@ -7,6 +7,7 @@ import com.quote.manager.dto.PurchaseOrderListVO;
 import com.quote.manager.dto.PurchaseOrderSaveRequest;
 import com.quote.manager.entity.PurchaseOrder;
 import com.quote.manager.service.InvoiceImportService;
+import com.quote.manager.service.TableImportService;
 import com.quote.manager.service.PurchaseOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,6 +29,7 @@ public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;
     private final InvoiceImportService invoiceImportService;
+    private final TableImportService tableImportService;
 
     /**
      * 订单分页。
@@ -86,5 +89,58 @@ public class PurchaseOrderController {
         body.put("quotesUnchanged", r.quotesUnchanged);
         body.put("errors", r.errors);
         return ApiResponse.ok(body);
+    }
+
+    /**
+     * 订单明细表导入 · 预览（不落库）。
+     * POST /api/orders/import-table/preview （multipart file）
+     * 列：型号/数量/采购额/销售价（美元）等中文表头。
+     */
+    @PostMapping("/import-table/preview")
+    public ApiResponse<Map<String, Object>> previewTable(@RequestParam("file") MultipartFile file) {
+        TableImportService.PreviewResult r = tableImportService.preview(file);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("suggestedOrderNo", r.suggestedOrderNo);
+        body.put("orderTime", r.orderTime);
+        body.put("items", r.items);
+        body.put("totalReceived", r.totalReceived);
+        body.put("totalPurchase", r.totalPurchase);
+        body.put("expectedReceipt", r.expectedReceipt);
+        return ApiResponse.ok(body);
+    }
+
+    /**
+     * 订单明细表导入 · 确认入库（客户名必填，订单号自动）。
+     * POST /api/orders/import-table/commit
+     * body: { customerName, items: [{model, quantity, purchaseAmount, salesUsd}] }
+     */
+    @PostMapping("/import-table/commit")
+    public ApiResponse<Map<String, Object>> commitTable(@RequestBody Map<String, Object> body) {
+        String customerName = body.get("customerName") == null ? null : String.valueOf(body.get("customerName"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rawItems = (List<Map<String, Object>>) body.get("items");
+        List<TableImportService.ItemRow> items = new java.util.ArrayList<>();
+        if (rawItems != null) {
+            for (Map<String, Object> raw : rawItems) {
+                TableImportService.ItemRow row = new TableImportService.ItemRow();
+                row.model = raw.get("model") == null ? null : String.valueOf(raw.get("model"));
+                if (raw.get("quantity") != null) {
+                    row.quantity = (int) Double.parseDouble(String.valueOf(raw.get("quantity")));
+                }
+                if (raw.get("purchaseAmount") != null && String.valueOf(raw.get("purchaseAmount")).length() > 0) {
+                    row.purchaseAmount = new java.math.BigDecimal(String.valueOf(raw.get("purchaseAmount")));
+                }
+                if (raw.get("salesUsd") != null && String.valueOf(raw.get("salesUsd")).length() > 0) {
+                    row.salesUsd = new java.math.BigDecimal(String.valueOf(raw.get("salesUsd")));
+                }
+                items.add(row);
+            }
+        }
+        com.quote.manager.entity.PurchaseOrder order = (com.quote.manager.entity.PurchaseOrder) tableImportService.commit(customerName, items);
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("id", order.getId());
+        resp.put("orderNo", order.getOrderNo());
+        resp.put("customerName", order.getCustomerName());
+        return ApiResponse.ok(resp);
     }
 }

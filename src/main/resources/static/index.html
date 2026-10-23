@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>型号报价管理系统</title>
-  <link rel="stylesheet" href="css/app.css?v=20261023e" />
+  <link rel="stylesheet" href="css/app.css?v=20261024a" />
 </head>
 <body>
 <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
@@ -79,6 +79,9 @@
       <button class="ghost" onclick="document.getElementById('invoice-file').click()">导入发票</button>
       <input type="file" id="invoice-file" accept=".xlsx,.xls" style="display:none"
              onchange="importInvoice(this)" />
+      <button class="ghost" onclick="document.getElementById('table-file').click()">导入表格</button>
+      <input type="file" id="table-file" accept=".xlsx,.xls" style="display:none"
+             onchange="importTable(this)" />
       <button class="primary" onclick="openOrderModal()">+ 新增订单</button>
     </div>
     <table>
@@ -270,11 +273,39 @@
   </div>
 </div>
 
+<!-- 导入表格预览：客户名必填后才能入库 -->
+<div class="modal-backdrop" id="table-import-modal">
+  <div class="modal" style="width:min(860px,96vw)">
+    <h3>导入表格 · 确认</h3>
+    <p class="sub">解析完成，尚未写入数据库。请填写客户名称后确认导入（订单号自动生成）</p>
+    <div class="field">
+      <label>客户名称 *</label>
+      <input id="ti-customer" placeholder="必填，未填无法导入" />
+    </div>
+    <div class="muted" id="ti-summary" style="margin-bottom:8px"></div>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>型号</th>
+          <th class="num">数量</th>
+          <th class="num">采购额</th>
+          <th class="num">销售价(USD)</th>
+        </tr>
+      </thead>
+      <tbody id="ti-body"></tbody>
+    </table>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('table-import-modal')">取消</button>
+      <button class="primary" id="ti-confirm-btn" onclick="commitTableImport()">确认导入</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261023e"></script>
-<script src="js/products.js?v=20261023e"></script>
-<script src="js/orders.js?v=20261023e"></script>
-<script src="js/init.js?v=20261023e"></script>
+<script src="js/common.js?v=20261024a"></script>
+<script src="js/products.js?v=20261024a"></script>
+<script src="js/orders.js?v=20261024a"></script>
+<script src="js/init.js?v=20261024a"></script>
 </body>
 </html>

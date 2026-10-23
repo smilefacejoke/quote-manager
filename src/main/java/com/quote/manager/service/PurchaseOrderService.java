@@ -141,6 +141,28 @@ public class PurchaseOrderService {
         return vo;
     }
 
+    /**
+     * 订单号：当日日期 yyyyMMdd + 当日已添加订单数+1（三位），如 20261024001。
+     * 自动递增，冲突则顺延。
+     */
+    public String generateOrderNo() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDateTime dayStart = today.atStartOfDay();
+        java.time.LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
+        long todayCount = orderMapper.selectCount(new LambdaQueryWrapper<PurchaseOrder>()
+                .ge(PurchaseOrder::getCreatedAt, dayStart)
+                .lt(PurchaseOrder::getCreatedAt, dayEnd));
+        String prefix = today.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        int seq = (int) todayCount + 1;
+        String base;
+        do {
+            base = prefix + String.format("%03d", seq);
+            seq++;
+        } while (orderMapper.selectCount(new LambdaQueryWrapper<PurchaseOrder>()
+                .eq(PurchaseOrder::getOrderNo, base)) > 0);
+        return base;
+    }
+
     @Transactional
     public PurchaseOrder create(PurchaseOrderSaveRequest req) {
         checkOrderNo(req.getOrderNo(), null);

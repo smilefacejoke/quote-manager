@@ -86,8 +86,17 @@ public class ExchangeRateService {
         rate.setUsdCnyRaw(raw);
         rate.setUsdCnyUsed(floorOneDecimal(raw));
         rate.setFetchedAt(LocalDateTime.now());
-        exchangeRateMapper.insert(rate);
-        log.info("刷新汇率 {} raw={} used={}", date, raw, rate.getUsdCnyUsed());
+        try {
+            exchangeRateMapper.insert(rate);
+            log.info("刷新汇率 {} raw={} used={}", date, raw, rate.getUsdCnyUsed());
+        } catch (Exception e) {
+            // 并发下可能已由其它请求写入，读回即可
+            ExchangeRate existing = findByDate(date);
+            if (existing != null) {
+                return existing;
+            }
+            throw e;
+        }
         return rate;
     }
 
