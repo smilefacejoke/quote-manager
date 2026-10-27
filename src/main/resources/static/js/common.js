@@ -85,3 +85,14 @@
     if (!t) return nowForDateTimeLocal();
     return String(t).replace(' ', 'T').slice(0, 16);
   }
+
+  /** 一键备份数据库到 backups/ */
+  async function backupDatabase() {
+    if (!confirm('将当前数据库导出到 backups/ 目录，确认备份？')) return;
+    const r = await api.send('/api/system/backup', 'POST');
+    if (r.code !== 0) {
+      toast(r.message || '备份失败');
+      return;
+    }
+    toast(`已备份：${(r.data && r.data.file) || ''}`);
+  }
