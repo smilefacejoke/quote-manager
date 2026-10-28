@@ -40,9 +40,11 @@
   async function loadOrders() {
     const orderNo = document.getElementById('q-order-no').value.trim();
     const customer = document.getElementById('q-customer').value.trim();
+    const month = document.getElementById('q-month').value.trim();
     let url = `/api/orders?pageNo=${orderPage}&pageSize=${orderPageSize}`;
     if (orderNo) url += `&orderNo=${encodeURIComponent(orderNo)}`;
     if (customer) url += `&customerName=${encodeURIComponent(customer)}`;
+    if (month) url += `&month=${encodeURIComponent(month)}`;
     const r = await api.get(url);
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     const page = r.data;

@@ -33,15 +33,17 @@ public class PurchaseOrderController {
 
     /**
      * 订单分页。
-     * GET /api/orders?pageNo=1&pageSize=10&orderNo=&customerName=
+     * GET /api/orders?pageNo=1&pageSize=10&orderNo=&customerName=&month=2026-10
+     * month 为 yyyy-MM，按「下订时间」过滤当月订单。
      */
     @GetMapping
     public ApiResponse<Page<PurchaseOrderListVO>> page(
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String orderNo,
-            @RequestParam(required = false) String customerName) {
-        return ApiResponse.ok(purchaseOrderService.page(pageNo, pageSize, orderNo, customerName));
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String month) {
+        return ApiResponse.ok(purchaseOrderService.page(pageNo, pageSize, orderNo, customerName, month));
     }
 
     /** 订单详情（含明细计算列） */

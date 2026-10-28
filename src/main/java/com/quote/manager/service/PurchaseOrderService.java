@@ -57,13 +57,26 @@ public class PurchaseOrderService {
     private final ExchangeRateService exchangeRateService;
 
     /** 订单分页列表，附带明细汇总金额 */
-    public Page<PurchaseOrderListVO> page(int pageNo, int pageSize, String orderNo, String customerName) {
+    public Page<PurchaseOrderListVO> page(int pageNo, int pageSize, String orderNo, String customerName,
+                                          String month) {
         LambdaQueryWrapper<PurchaseOrder> qw = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(orderNo)) {
             qw.like(PurchaseOrder::getOrderNo, orderNo.trim());
         }
         if (StringUtils.hasText(customerName)) {
             qw.like(PurchaseOrder::getCustomerName, customerName.trim());
+        }
+        // month 格式 yyyy-MM：按下订时间落在当月内
+        if (StringUtils.hasText(month)) {
+            String m = month.trim();
+            if (!m.matches("\\d{4}-\\d{2}")) {
+                throw new BizException("月份格式应为 yyyy-MM");
+            }
+            java.time.YearMonth ym = java.time.YearMonth.parse(m);
+            java.time.LocalDateTime start = ym.atDay(1).atStartOfDay();
+            java.time.LocalDateTime end = ym.plusMonths(1).atDay(1).atStartOfDay();
+            qw.ge(PurchaseOrder::getOrderTime, start);
+            qw.lt(PurchaseOrder::getOrderTime, end);
         }
         qw.orderByDesc(PurchaseOrder::getOrderTime).orderByDesc(PurchaseOrder::getId);
         Page<PurchaseOrder> orderPage = orderMapper.selectPage(new Page<>(pageNo, pageSize), qw);
