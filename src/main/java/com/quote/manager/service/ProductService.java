@@ -328,6 +328,44 @@ public class ProductService {
      *
      * @return 实际删除的产品数（忽略不存在的 id）
      */
+    /**
+     * 批量编辑：只改传入字段。
+     * brand 传了就改（空串 = 清空品牌）；quantity 传了就改各产品「最新报价」的数量。
+     * 两者都未传则不改任何东西。
+     */
+    @Transactional
+    public int updateBatch(List<Long> ids, String brand, Integer quantity, boolean hasBrand, boolean hasQuantity) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BizException("请先选择要编辑的产品");
+        }
+        if (!hasBrand && !hasQuantity) {
+            throw new BizException("请至少填写一项要修改的内容");
+        }
+        List<Long> distinctIds = ids.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        List<Product> products = productMapper.selectBatchIds(distinctIds);
+        if (products.isEmpty()) {
+            throw new BizException("所选产品不存在");
+        }
+        for (Product product : products) {
+            if (hasBrand) {
+                String b = brand == null ? null : brand.trim();
+                product.setBrand(b == null || b.isEmpty() ? null : b);
+                productMapper.updateById(product);
+            }
+            if (hasQuantity) {
+                Quote latest = findLatestQuote(product.getId());
+                if (latest != null) {
+                    latest.setQuantity(quantity);
+                    quoteMapper.updateById(latest);
+                }
+            }
+        }
+        return products.size();
+    }
+
     @Transactional
     public int deleteBatch(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {

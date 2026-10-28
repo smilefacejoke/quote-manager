@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>型号报价管理系统</title>
-  <link rel="stylesheet" href="css/app.css?v=20261024c" />
+  <link rel="stylesheet" href="css/app.css?v=20261024d" />
 </head>
 <body>
 <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
@@ -37,6 +37,7 @@
     <button class="ghost" onclick="document.getElementById('import-file').click()">导入 Excel</button>
     <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none"
            onchange="importExcel(this)" />
+    <button class="ghost" id="batch-edit-btn" onclick="openBatchEditModal()" disabled>批量编辑</button>
     <button class="ghost danger" id="batch-delete-btn" onclick="deleteSelectedProducts()" disabled>批量删除</button>
     <button class="primary" onclick="openProductModal()">+ 新增产品</button>
   </div>
@@ -302,11 +303,32 @@
   </div>
 </div>
 
+<!-- 批量编辑：只改品牌/数量，留空不修改 -->
+<div class="modal-backdrop" id="batch-edit-modal">
+  <div class="modal">
+    <h3>批量编辑</h3>
+    <p class="sub">仅可修改品牌、需求数量；<b>留空 = 不修改该项</b></p>
+    <div class="muted" id="batch-edit-summary" style="margin-bottom:10px"></div>
+    <div class="field">
+      <label>品牌（留空不修改）</label>
+      <input id="be-brand" placeholder="留空则品牌不变" />
+    </div>
+    <div class="field">
+      <label>需求数量（留空不修改；写到各型号最新报价）</label>
+      <input id="be-quantity" type="number" min="0" step="1" placeholder="留空则数量不变" />
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal('batch-edit-modal')">取消</button>
+      <button class="primary" onclick="saveBatchEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261024c"></script>
-<script src="js/products.js?v=20261024c"></script>
-<script src="js/orders.js?v=20261024c"></script>
-<script src="js/init.js?v=20261024c"></script>
+<script src="js/common.js?v=20261024d"></script>
+<script src="js/products.js?v=20261024d"></script>
+<script src="js/orders.js?v=20261024d"></script>
+<script src="js/init.js?v=20261024d"></script>
 </body>
 </html>

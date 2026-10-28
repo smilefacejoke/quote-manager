@@ -283,6 +283,45 @@
     const n = selectedProductIds.size;
     btn.textContent = n > 0 ? `批量删除 (${n})` : '批量删除';
     btn.disabled = n === 0;
+    const editBtn = document.getElementById('batch-edit-btn');
+    if (editBtn) {
+      editBtn.textContent = n > 0 ? `批量编辑 (${n})` : '批量编辑';
+      editBtn.disabled = n === 0;
+    }
+  }
+
+  function openBatchEditModal() {
+    const ids = [...selectedProductIds];
+    if (!ids.length) { toast('请先勾选要编辑的产品'); return; }
+    document.getElementById('batch-edit-summary').textContent =
+      `已选 ${ids.length} 个产品，只修改你在下面填写的项`;
+    document.getElementById('be-brand').value = '';
+    document.getElementById('be-quantity').value = '';
+    document.getElementById('batch-edit-modal').classList.add('open');
+  }
+
+  /** 批量编辑：只提交填了的字段 */
+  async function saveBatchEdit() {
+    const ids = [...selectedProductIds];
+    if (!ids.length) { toast('请先勾选要编辑的产品'); return; }
+    const brandVal = document.getElementById('be-brand').value;
+    const qtyVal = document.getElementById('be-quantity').value.trim();
+    // 用是否「动过输入」不好判断；约定：数量输入框有内容才改，品牌输入框有内容或明确要清空用空格
+    const brandFilled = brandVal.length > 0;
+    const qtyFilled = qtyVal !== '';
+    if (!brandFilled && !qtyFilled) {
+      toast('请至少填写一项要修改的内容');
+      return;
+    }
+    const body = { ids };
+    if (brandFilled) body.brand = brandVal.trim();
+    if (qtyFilled) body.quantity = Number(qtyVal);
+    const r = await api.send('/api/products/batch-update', 'POST', body);
+    if (r.code !== 0) { toast(r.message || '操作失败'); return; }
+    closeModal('batch-edit-modal');
+    toast(`已更新 ${r.data && r.data.updated != null ? r.data.updated : ids.length} 个产品`);
+    loadProducts();
+    loadBrands();
   }
 
   /** 批量删除勾选的产品：各自历史报价一并删除 */

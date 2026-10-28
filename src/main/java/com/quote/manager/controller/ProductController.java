@@ -146,4 +146,33 @@ public class ProductController {
         body.put("deleted", deleted);
         return ApiResponse.ok(body);
     }
+
+    /**
+     * 批量编辑产品：只改品牌 / 需求数量，留空字段不修改。
+     * POST /api/products/batch-update
+     * body: { ids: [1,2], brand?: "华为", quantity?: 10 }
+     * brand 传空串表示清空品牌。
+     */
+    @PostMapping("/batch-update")
+    public ApiResponse<Map<String, Object>> updateBatch(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Number> rawIds = (List<Number>) body.get("ids");
+        List<Long> ids = new java.util.ArrayList<>();
+        if (rawIds != null) {
+            for (Number n : rawIds) {
+                ids.add(n.longValue());
+            }
+        }
+        boolean hasBrand = body.containsKey("brand") && body.get("brand") != null;
+        String brand = body.get("brand") == null ? null : String.valueOf(body.get("brand"));
+        boolean hasQuantity = body.containsKey("quantity") && body.get("quantity") != null;
+        Integer quantity = null;
+        if (hasQuantity) {
+            quantity = (int) Double.parseDouble(String.valueOf(body.get("quantity")));
+        }
+        int updated = productService.updateBatch(ids, brand, quantity, hasBrand, hasQuantity);
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("updated", updated);
+        return ApiResponse.ok(resp);
+    }
 }
