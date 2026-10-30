@@ -30,6 +30,22 @@
     return productOptions.find(p => String(p.model || '').trim() === m) || null;
   }
 
+  /** 当月利润（有月份筛选则显示该月） */
+  async function loadMonthProfit(month) {
+    let url = '/api/orders/month-profit';
+    if (month) url += `?month=${encodeURIComponent(month)}`;
+    const r = await api.get(url);
+    const el = document.getElementById('month-profit-val');
+    if (!el) return;
+    if (r.code !== 0) {
+      el.textContent = '—';
+      return;
+    }
+    const profit = r.data && r.data.profit != null ? Number(r.data.profit) : 0;
+    el.textContent = fmtMoney(profit);
+    el.style.color = profit > 0 ? 'var(--positive)' : (profit < 0 ? 'var(--danger)' : 'var(--ink)');
+  }
+
   function pageOrders(delta) {
     const next = orderPage + delta;
     if (next < 1) return;
@@ -49,6 +65,7 @@
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     const page = r.data;
     document.getElementById('order-page-info').textContent = `第 ${page.current} 页 · 共 ${page.total} 条`;
+    loadMonthProfit(month);
     const body = document.getElementById('order-body');
     const rows = page.records || [];
     if (!rows.length) {

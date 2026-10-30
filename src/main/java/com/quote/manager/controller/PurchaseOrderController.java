@@ -46,6 +46,15 @@ public class PurchaseOrderController {
         return ApiResponse.ok(purchaseOrderService.page(pageNo, pageSize, orderNo, customerName, month));
     }
 
+    /**
+     * 当月利润（实际总利润合计）。
+     * GET /api/orders/month-profit?month=yyyy-MM  （month 可省略＝当月）
+     */
+    @GetMapping("/month-profit")
+    public ApiResponse<Map<String, Object>> monthProfit(@RequestParam(required = false) String month) {
+        return ApiResponse.ok(purchaseOrderService.monthProfit(month));
+    }
+
     /** 订单详情（含明细计算列） */
     @GetMapping("/{id}")
     public ApiResponse<PurchaseOrderDetailVO> detail(@PathVariable Long id) {

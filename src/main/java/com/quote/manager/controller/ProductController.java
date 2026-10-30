@@ -48,8 +48,9 @@ public class ProductController {
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String brand,
-            @RequestParam(required = false) String model) {
-        return ApiResponse.ok(productService.pageWithLatestQuote(pageNo, pageSize, brand, model));
+            @RequestParam(required = false) String model,
+            @RequestParam(required = false) String month) {
+        return ApiResponse.ok(productService.pageWithLatestQuote(pageNo, pageSize, brand, model, month));
     }
 
     /**

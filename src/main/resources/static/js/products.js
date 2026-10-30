@@ -134,9 +134,11 @@
   async function loadProducts() {
     const brand = document.getElementById('q-brand').value.trim();
     const model = document.getElementById('q-model').value.trim();
+    const month = document.getElementById('q-product-month').value.trim();
     let url = `/api/products?pageNo=${productPage}&pageSize=${productPageSize}`;
     if (brand) url += `&brand=${encodeURIComponent(brand)}`;
     if (model) url += `&model=${encodeURIComponent(model)}`;
+    if (month) url += `&month=${encodeURIComponent(month)}`;
     const r = await api.get(url);
     if (r.code !== 0) { toast(r.message || '操作失败'); return; }
     const page = r.data;

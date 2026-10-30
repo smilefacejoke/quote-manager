@@ -28,7 +28,7 @@ class QuoteServiceRuleTest {
     private ProductService productService;
 
     private Long anyProductId() {
-        var page = productService.page(1, 1, null, null);
+        var page = productService.page(1, 1, null, null, null);
         if (!page.getRecords().isEmpty()) {
             return page.getRecords().get(0).getId();
         }

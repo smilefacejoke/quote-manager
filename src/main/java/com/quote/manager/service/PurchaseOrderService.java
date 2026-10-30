@@ -155,6 +155,39 @@ public class PurchaseOrderService {
     }
 
     /**
+     * 当月（或指定月）利润 = 该月订单实际总利润之和（实际收款 − 采购额）。
+     * month 为空则取当前月。
+     */
+    public java.util.Map<String, Object> monthProfit(String month) {
+        java.time.YearMonth ym = StringUtils.hasText(month)
+                ? java.time.YearMonth.parse(month.trim())
+                : java.time.YearMonth.now();
+        java.time.LocalDateTime start = ym.atDay(1).atStartOfDay();
+        java.time.LocalDateTime end = ym.plusMonths(1).atDay(1).atStartOfDay();
+        List<PurchaseOrder> orders = orderMapper.selectList(new LambdaQueryWrapper<PurchaseOrder>()
+                .ge(PurchaseOrder::getOrderTime, start)
+                .lt(PurchaseOrder::getOrderTime, end));
+        BigDecimal profit = BigDecimal.ZERO;
+        if (!orders.isEmpty()) {
+            List<Long> ids = orders.stream().map(PurchaseOrder::getId).toList();
+            Map<Long, List<PurchaseOrderItem>> byOrder = fetchItemsByOrder(ids);
+            for (PurchaseOrder o : orders) {
+                List<PurchaseOrderItem> items = byOrder.getOrDefault(o.getId(), List.of());
+                BigDecimal purchase = BigDecimal.ZERO;
+                for (PurchaseOrderItem it : items) {
+                    purchase = purchase.add(nz(it.getPurchaseAmount()));
+                }
+                profit = profit.add(nz(o.getActualReceived())).subtract(purchase);
+            }
+        }
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("month", ym.toString());
+        body.put("orderCount", orders.size());
+        body.put("profit", profit.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        return body;
+    }
+
+    /**
      * 订单号：当日日期 yyyyMMdd + 当日已添加订单数+1（三位），如 20261024001。
      * 自动递增，冲突则顺延。
      */

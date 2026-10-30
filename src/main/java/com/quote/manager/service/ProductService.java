@@ -42,8 +42,9 @@ public class ProductService {
      * 产品分页，并附带每条产品「最新一条」报价。
      * 列表页展示采购价/报价用最新值；历史轨迹走报价查询接口。
      */
-    public Page<ProductWithQuoteVO> pageWithLatestQuote(int pageNo, int pageSize, String brand, String model) {
-        Page<Product> productPage = page(pageNo, pageSize, brand, model);
+    public Page<ProductWithQuoteVO> pageWithLatestQuote(int pageNo, int pageSize, String brand, String model,
+                                                        String month) {
+        Page<Product> productPage = page(pageNo, pageSize, brand, model, month);
         List<Product> products = productPage.getRecords();
         if (products.isEmpty()) {
             return toEmptyVoPage(productPage);
@@ -110,7 +111,7 @@ public class ProductService {
 
     /** 全量导出用：按筛选条件取全部产品 + 最新报价，不分页 */
     public List<ProductWithQuoteVO> listWithLatestQuote(String brand, String model) {
-        Page<Product> productPage = page(1, Integer.MAX_VALUE, brand, model);
+        Page<Product> productPage = page(1, Integer.MAX_VALUE, brand, model, null);
         return attachLatestQuotes(productPage.getRecords());
     }
 
@@ -159,14 +160,33 @@ public class ProductService {
         }).toList();
     }
 
-    /** 品牌/型号模糊过滤，按 id 倒序 */
-    public Page<Product> page(int pageNo, int pageSize, String brand, String model) {
+    /** 品牌/型号模糊过滤，按 id 倒序；month=yyyy-MM 时只要「该月有报价」的产品 */
+    public Page<Product> page(int pageNo, int pageSize, String brand, String model, String month) {
         LambdaQueryWrapper<Product> qw = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(brand)) {
             qw.like(Product::getBrand, brand);
         }
         if (StringUtils.hasText(model)) {
             qw.like(Product::getModel, model);
+        }
+        if (StringUtils.hasText(month)) {
+            String m = month.trim();
+            if (!m.matches("\\d{4}-\\d{2}")) {
+                throw new BizException("月份格式应为 yyyy-MM");
+            }
+            java.time.YearMonth ym = java.time.YearMonth.parse(m);
+            List<Long> idsInMonth = quoteMapper.selectList(new LambdaQueryWrapper<Quote>()
+                            .select(Quote::getProductId)
+                            .ge(Quote::getQuoteTime, ym.atDay(1).atStartOfDay())
+                            .lt(Quote::getQuoteTime, ym.plusMonths(1).atDay(1).atStartOfDay()))
+                    .stream()
+                    .map(Quote::getProductId)
+                    .distinct()
+                    .toList();
+            if (idsInMonth.isEmpty()) {
+                return new Page<>(pageNo, pageSize, 0);
+            }
+            qw.in(Product::getId, idsInMonth);
         }
         qw.orderByDesc(Product::getId);
         return productMapper.selectPage(new Page<>(pageNo, pageSize), qw);
