@@ -144,6 +144,10 @@ public class PurchaseOrderController {
                 if (raw.get("salesUsd") != null && String.valueOf(raw.get("salesUsd")).length() > 0) {
                     row.salesUsd = new java.math.BigDecimal(String.valueOf(raw.get("salesUsd")));
                 }
+                if (raw.get("actualReceived") != null && String.valueOf(raw.get("actualReceived")).length() > 0
+                        && !"null".equals(String.valueOf(raw.get("actualReceived")))) {
+                    row.actualReceived = new java.math.BigDecimal(String.valueOf(raw.get("actualReceived")));
+                }
                 items.add(row);
             }
         }

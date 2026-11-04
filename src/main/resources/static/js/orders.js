@@ -246,12 +246,13 @@
       `共 ${tableImportItems.length} 行 · 预计收款 ${fmtMoney(d.expectedReceipt)} · 采购额 ${fmtMoney(d.totalPurchase)} · 订单号将自动生成（${d.suggestedOrderNo || ''}）`;
     const body = document.getElementById('ti-body');
     if (!tableImportItems.length) {
-      body.innerHTML = '<tr><td colspan="4" class="empty">无明细</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="empty">无明细</td></tr>';
     } else {
       body.innerHTML = tableImportItems.map(it => `
         <tr>
           <td class="cell-strong">${esc(it.model)}</td>
           <td class="num">${it.quantity ?? '—'}</td>
+          <td class="num">${fmtMoney(it.actualReceived)}</td>
           <td class="num">${fmtMoney(it.purchaseAmount)}</td>
           <td class="num">${fmtMoney(it.salesUsd)}</td>
         </tr>`).join('');
@@ -278,6 +279,7 @@
         quantity: it.quantity != null ? it.quantity : 1,
         purchaseAmount: it.purchaseAmount != null ? it.purchaseAmount : null,
         salesUsd: it.salesUsd != null ? it.salesUsd : null,
+        actualReceived: it.actualReceived != null ? it.actualReceived : null,
       })),
     };
     const r = await api.send('/api/orders/import-table/commit', 'POST', body);

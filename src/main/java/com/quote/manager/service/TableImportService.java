@@ -57,6 +57,8 @@ public class TableImportService {
         public Integer quantity;
         public BigDecimal purchaseAmount;
         public BigDecimal salesUsd;
+        /** 行上的实际收款；入库时合计到订单级 */
+        public BigDecimal actualReceived;
     }
 
     /** 解析表格，仅预览 */
@@ -70,7 +72,10 @@ public class TableImportService {
         BigDecimal purchase = BigDecimal.ZERO;
         BigDecimal expected = BigDecimal.ZERO;
         for (ItemRow it : items) {
-            // 表内可能没写实际收款；写了则合计到订单级
+            // 实际收款按行解析，合计到订单级
+            if (it.actualReceived != null) {
+                received = received.add(it.actualReceived);
+            }
             purchase = purchase.add(it.purchaseAmount == null ? BigDecimal.ZERO : it.purchaseAmount);
             if (it.salesUsd != null && it.quantity != null) {
                 BigDecimal rate = exchangeRateService.getTodayUsedRate();
@@ -103,6 +108,8 @@ public class TableImportService {
         req.setCustomerName(customerName.trim());
         req.setOrderTime(LocalDateTime.now());
         List<PurchaseOrderSaveRequest.Item> list = new ArrayList<>();
+        BigDecimal received = BigDecimal.ZERO;
+        boolean hasReceived = false;
         for (ItemRow row : items) {
             if (!StringUtils.hasText(row.model)) {
                 throw new BizException("型号不能为空");
@@ -113,6 +120,13 @@ public class TableImportService {
             it.setPurchaseAmount(row.purchaseAmount);
             it.setSalesUsd(row.salesUsd);
             list.add(it);
+            if (row.actualReceived != null) {
+                received = received.add(row.actualReceived);
+                hasReceived = true;
+            }
+        }
+        if (hasReceived) {
+            req.setActualReceived(received.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         }
         req.setItems(list);
         return purchaseOrderService.create(req);
@@ -142,6 +156,7 @@ public class TableImportService {
                 item.model = m;
                 item.quantity = intVal(cell(row, cols.getOrDefault("quantity", -1)));
                 item.purchaseAmount = absIfNegative(decimal(cell(row, cols.getOrDefault("purchase", -1))));
+                item.actualReceived = decimal(cell(row, cols.getOrDefault("received", -1)));
                 item.salesUsd = decimal(cell(row, cols.getOrDefault("salesUsd", -1)));
                 if (item.salesUsd == null) {
                     // 回退：用销售价（人民币）/ 汇率
