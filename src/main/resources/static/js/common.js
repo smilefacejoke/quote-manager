@@ -77,6 +77,11 @@
     if (view === 'products') loadProducts();
   }
 
+  /** 预计收款展示：0 或空显示 --- */
+  function fmtExpected(v) {
+    return (v == null || Number(v) === 0) ? '---' : fmtMoney(v);
+  }
+
   function fmtMoney(v) {
     return v == null ? '—' : Number(v).toFixed(2);
   }

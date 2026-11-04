@@ -77,7 +77,7 @@
         <td><span class="model-link">${esc(o.orderNo)}</span></td>
         <td class="cell-strong">${esc(o.customerName)}</td>
         <td class="cell-sub nowrap">${fmtTime(o.orderTime)}</td>
-        <td class="num cell-sub">${fmtMoney(o.expectedReceipt)}</td>
+        <td class="num cell-sub">${fmtExpected(o.expectedReceipt)}</td>
         <td class="num">${fmtMoney(o.totalReceived)}</td>
         <td class="num cell-sub">${fmtMoney(o.totalPurchase)}</td>
         <td class="num money-hl">${fmtMoney(o.actualTotalProfit)}</td>
@@ -107,7 +107,7 @@
     document.getElementById('order-summary-cards').innerHTML = `
       <div class="summary-card neutral">
         <div class="label">预计收款</div>
-        <div class="val">${fmtMoney(d.expectedReceipt)}</div>
+        <div class="val">${fmtExpected(d.expectedReceipt)}</div>
       </div>
       <div class="summary-card neutral">
         <div class="label">实际收款（整单）</div>
@@ -152,7 +152,7 @@
         </tr>`).join('');
     }
     document.getElementById('order-detail-totals').textContent =
-      `预计收款 ${fmtMoney(d.expectedReceipt)} · 实际收款（整单）${fmtMoney(d.totalReceived)} · 采购额合计 ${fmtMoney(d.totalPurchase)} · 实际总利润 ${fmtMoney(d.actualTotalProfit)}`;
+      `预计收款 ${fmtExpected(d.expectedReceipt)} · 实际收款（整单）${fmtMoney(d.totalReceived)} · 采购额合计 ${fmtMoney(d.totalPurchase)} · 实际总利润 ${fmtMoney(d.actualTotalProfit)}`;
     showView('order-detail');
     loadProductOptions();
   }
@@ -243,7 +243,7 @@
     tableImportItems = d.items || [];
     document.getElementById('ti-customer').value = '';
     document.getElementById('ti-summary').textContent =
-      `共 ${tableImportItems.length} 行 · 预计收款 ${fmtMoney(d.expectedReceipt)} · 采购额 ${fmtMoney(d.totalPurchase)} · 订单号将自动生成（${d.suggestedOrderNo || ''}）`;
+      `共 ${tableImportItems.length} 行 · 预计收款 ${fmtExpected(d.expectedReceipt)} · 采购额 ${fmtMoney(d.totalPurchase)} · 订单号将自动生成（${d.suggestedOrderNo || ''}）`;
     const body = document.getElementById('ti-body');
     if (!tableImportItems.length) {
       body.innerHTML = '<tr><td colspan="5" class="empty">无明细</td></tr>';
